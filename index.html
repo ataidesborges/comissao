@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Comissão de Afiliado com IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .file-input-label {
+            cursor: pointer;
+        }
+        .sortable {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .sortable:hover {
+            background-color: #4a5568; /* gray-700 */
+        }
+        #gemini-analysis-output h4 {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 700; /* font-bold */
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        #gemini-analysis-output ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        #gemini-analysis-output p {
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="p-6 sm:p-8">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 text-center mb-6">Relatório de Comissão de Afiliado</h1>
+
+                <!-- Seção de Upload de Arquivo -->
+                <div class="mb-6 p-4 border-dashed border-2 border-gray-300 rounded-lg text-center">
+                    <label for="csv-file" class="file-input-label inline-block bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        Selecionar Arquivo CSV
+                    </label>
+                    <input type="file" id="csv-file" class="hidden" accept=".csv">
+                    <p id="file-name" class="text-sm text-gray-500 mt-2">Nenhum arquivo selecionado</p>
+                </div>
+
+                <!-- Totais -->
+                <div id="totals-section" class="mb-8 p-6 bg-gray-50 border-t-4 border-gray-200 rounded-lg hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                        <div class="p-4 bg-white rounded-lg shadow">
+                            <h3 class="text-lg font-semibold text-gray-700">Total de Pedidos</h3>
+                            <p id="total-orders" class="text-3xl font-bold text-gray-800 mt-1">0</p>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg shadow">
+                            <h3 class="text-lg font-semibold text-gray-700">Total de Produtos</h3>
+                            <p id="total-quantity" class="text-3xl font-bold text-gray-800 mt-1">0</p>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-300 my-6"></div>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xl font-semibold text-gray-700">Valor Total da Comissão:</span>
+                            <span id="total-value" class="text-3xl font-bold text-blue-600">R$ 0,00</span>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-700 mb-2">Totais por Canal:</h3>
+                            <ul id="channel-totals" class="space-y-2 text-gray-600"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Dados -->
+                <div id="table-section" class="mt-8 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-800">Detalhes dos Pedidos</h2>
+                        <button id="toggle-table-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
+                            Ocultar Tabela
+                        </button>
+                    </div>
+                    <div id="table-wrapper" class="overflow-x-auto transition-all duration-300">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">ID do Pedido</th>
+                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Sub ID</th>
+                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Canal</th>
+                                    <th id="sort-quantity" class="sortable text-center py-3 px-4 uppercase font-semibold text-sm">Quantidade <span id="icon-quantity"></span></th>
+                                    <th id="sort-commission" class="sortable text-right py-3 px-4 uppercase font-semibold text-sm">Comissão <span id="icon-commission"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body" class="text-gray-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+                 <div id="table-placeholder" class="text-center py-10 text-gray-500">
+                    <p>Aguardando o envio de um arquivo...</p>
+                </div>
+                
+                <!-- Seção de Gráficos -->
+                <div id="charts-section" class="mt-8 border-t-4 border-green-500 rounded-lg bg-green-50 p-6 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-green-800">Visualização Gráfica por Sub ID</h2>
+                        <button id="toggle-charts-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
+                            Ocultar Gráficos
+                        </button>
+                    </div>
+                    <div id="charts-wrapper" class="transition-all duration-300">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6 items-center">
+                            <div class="flex flex-col items-center">
+                                <h3 class="text-lg font-semibold text-center mb-2">Comissão por Sub ID (Pizza)</h3>
+                                <div class="relative w-1/2">
+                                    <canvas id="pie-chart"></canvas>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-center mb-2">Comissão vs. Quantidade por Sub ID</h3>
+                                <canvas id="bar-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção Gemini API -->
+                <div id="gemini-section" class="mt-8 border-t-4 border-purple-500 rounded-lg bg-purple-50 p-6 hidden">
+                    <h2 class="text-2xl font-bold text-purple-800 mb-4">Análise de Performance com IA</h2>
+                    <button id="gemini-button" class="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center disabled:bg-purple-300">
+                        <span class="mr-2">✨</span> Gerar Análise de Performance
+                    </button>
+                    <div id="gemini-analysis-output" class="mt-4 text-gray-700 prose"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementos da DOM
+        const fileInput = document.getElementById('csv-file');
+        const fileNameElement = document.getElementById('file-name');
+        const tableSection = document.getElementById('table-section');
+        const tableWrapper = document.getElementById('table-wrapper');
+        const toggleTableBtn = document.getElementById('toggle-table-btn');
+        const tableBody = document.getElementById('table-body');
+        const totalsSection = document.getElementById('totals-section');
+        const totalValueElement = document.getElementById('total-value');
+        const totalQuantityElement = document.getElementById('total-quantity');
+        const totalOrdersElement = document.getElementById('total-orders');
+        const tablePlaceholder = document.getElementById('table-placeholder');
+        const channelTotalsElement = document.getElementById('channel-totals');
+        const geminiSection = document.getElementById('gemini-section');
+        const geminiButton = document.getElementById('gemini-button');
+        const geminiOutput = document.getElementById('gemini-analysis-output');
+        const chartsSection = document.getElementById('charts-section');
+        const chartsWrapper = document.getElementById('charts-wrapper');
+        const toggleChartsBtn = document.getElementById('toggle-charts-btn');
+
+        // Estado da aplicação
+        let commissionDataStore = [];
+        let sortState = { column: null, direction: 'desc' };
+        let channelMetricsStore = {};
+        let pieChartInstance;
+        let barChartInstance;
+
+        // Event Listeners
+        fileInput.addEventListener('change', handleFileSelect);
+        document.getElementById('sort-quantity').addEventListener('click', () => sortTableBy('quantity'));
+        document.getElementById('sort-commission').addEventListener('click', () => sortTableBy('commission'));
+        toggleTableBtn.addEventListener('click', toggleTableVisibility);
+        toggleChartsBtn.addEventListener('click', toggleChartsVisibility);
+        geminiButton.addEventListener('click', generateAnalysis);
+
+        function toggleTableVisibility() {
+            tableWrapper.classList.toggle('hidden');
+            toggleTableBtn.textContent = tableWrapper.classList.contains('hidden') ? 'Mostrar Tabela' : 'Ocultar Tabela';
+        }
+
+        function toggleChartsVisibility() {
+            chartsWrapper.classList.toggle('hidden');
+            toggleChartsBtn.textContent = chartsWrapper.classList.contains('hidden') ? 'Mostrar Gráficos' : 'Ocultar Gráficos';
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                fileNameElement.textContent = 'Nenhum arquivo selecionado';
+                return;
+            }
+            fileNameElement.textContent = `Arquivo selecionado: ${file.name}`;
+            
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    if (results.errors.length > 0) {
+                        alert("Ocorreu um erro ao ler o arquivo CSV. Verifique o formato.");
+                        console.error("Erros de parsing:", results.errors);
+                        return;
+                    }
+                    processData(results.data);
+                },
+                error: (error) => {
+                    alert("Não foi possível ler o arquivo.");
+                    console.error("Erro no PapaParse:", error);
+                }
+            });
+        }
+
+        function processData(data) {
+            if (data.length > 0 && (!data[0].hasOwnProperty('ID do pedido') || !data[0].hasOwnProperty('Comissão líquida do afiliado(R$)') || !data[0].hasOwnProperty('Qtd') || !data[0].hasOwnProperty('Canal'))) {
+                alert('O arquivo CSV não contém as colunas necessárias: "ID do pedido", "Comissão líquida do afiliado(R$)", "Qtd" e "Canal"');
+                return;
+            }
+
+            commissionDataStore = data.map(item => ({
+                orderId: item['ID do pedido'],
+                subId: item['Sub_id1'] || 'N/A',
+                channel: item['Canal'] || 'N/A',
+                quantity: item['Qtd'] || 0,
+                commission: item['Comissão líquida do afiliado(R$)'] || 0
+            }));
+
+            tablePlaceholder.classList.add('hidden');
+            totalsSection.classList.remove('hidden');
+            tableSection.classList.remove('hidden');
+            geminiSection.classList.remove('hidden');
+            chartsSection.classList.remove('hidden');
+
+            populateTable(commissionDataStore);
+            calculateTotals(commissionDataStore);
+            renderCharts(commissionDataStore);
+        }
+
+        function sortTableBy(column) {
+            if (sortState.column === column) {
+                sortState.direction = sortState.direction === 'desc' ? 'asc' : 'desc';
+            } else {
+                sortState.column = column;
+                sortState.direction = 'desc';
+            }
+
+            commissionDataStore.sort((a, b) => {
+                const valA = a[column];
+                const valB = b[column];
+                return sortState.direction === 'asc' ? valA - valB : valB - valA;
+            });
+
+            populateTable(commissionDataStore);
+            updateSortIcons();
+        }
+
+        function updateSortIcons() {
+            document.getElementById('icon-quantity').textContent = '';
+            document.getElementById('icon-commission').textContent = '';
+            if (sortState.column) {
+                const iconElement = document.getElementById(`icon-${sortState.column}`);
+                iconElement.textContent = sortState.direction === 'desc' ? ' ▼' : ' ▲';
+            }
+        }
+
+        function populateTable(data) {
+            tableBody.innerHTML = ''; 
+            
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                const formattedCommission = Number(item.commission).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                row.className = 'border-b border-gray-200 hover:bg-gray-100';
+                row.innerHTML = `
+                    <td class="py-3 px-4">${item.orderId}</td>
+                    <td class="py-3 px-4">${item.subId}</td>
+                    <td class="py-3 px-4">${item.channel}</td>
+                    <td class="py-3 px-4 text-center">${item.quantity}</td>
+                    <td class="py-3 px-4 text-right font-medium">${formattedCommission}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function calculateTotals(data) {
+            const totalCommission = data.reduce((sum, item) => sum + Number(item.commission), 0);
+            const totalQuantity = data.reduce((sum, item) => sum + Number(item.quantity), 0);
+            const totalOrders = data.length;
+            
+            totalValueElement.textContent = totalCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            totalQuantityElement.textContent = totalQuantity;
+            totalOrdersElement.textContent = totalOrders;
+
+            channelMetricsStore = data.reduce((acc, item) => {
+                const channel = item.channel || 'N/A';
+                const quantity = Number(item.quantity) || 0;
+                if (!acc[channel]) {
+                    acc[channel] = { quantity: 0, orders: 0 };
+                }
+                acc[channel].quantity += quantity;
+                acc[channel].orders += 1;
+                return acc;
+            }, {});
+
+            channelTotalsElement.innerHTML = '';
+            if (Object.keys(channelMetricsStore).length > 0) {
+                for (const channel in channelMetricsStore) {
+                    const metrics = channelMetricsStore[channel];
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center bg-white p-2 rounded-md shadow-sm';
+                    li.innerHTML = `
+                        <span>${channel}</span>
+                        <div class="flex items-center space-x-4">
+                             <span class="font-semibold text-gray-600">Pedidos: <span class="font-bold bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">${metrics.orders}</span></span>
+                             <span class="font-semibold text-gray-600">Produtos: <span class="font-bold bg-gray-200 text-gray-800 text-sm px-2 py-1 rounded-full">${metrics.quantity}</span></span>
+                        </div>
+                    `;
+                    channelTotalsElement.appendChild(li);
+                }
+            } else {
+                channelTotalsElement.innerHTML = '<li>Nenhum dado de canal disponível.</li>';
+            }
+        }
+
+        function renderCharts(data) {
+            const subIdMetrics = data.reduce((acc, item) => {
+                const subId = item.subId || 'N/A';
+                const commission = Number(item.commission) || 0;
+                const quantity = Number(item.quantity) || 0;
+                if (!acc[subId]) {
+                    acc[subId] = { commission: 0, quantity: 0 };
+                }
+                acc[subId].commission += commission;
+                acc[subId].quantity += quantity;
+                return acc;
+            }, {});
+
+            const labels = Object.keys(subIdMetrics);
+            const commissionValues = labels.map(label => subIdMetrics[label].commission);
+            const quantityValues = labels.map(label => subIdMetrics[label].quantity);
+
+            if (pieChartInstance) pieChartInstance.destroy();
+            if (barChartInstance) barChartInstance.destroy();
+
+            const backgroundColors = labels.map(() => `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.7)`);
+            const borderColors = backgroundColors.map(color => color.replace('0.7', '1'));
+
+            // Gráfico de Pizza (Apenas comissão)
+            const pieCtx = document.getElementById('pie-chart').getContext('2d');
+            pieChartInstance = new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Comissão (R$)',
+                        data: commissionValues,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        return data.labels.map((label, i) => {
+                                            const meta = chart.getDatasetMeta(0);
+                                            const style = meta.controller.getStyle(i);
+                                            const value = data.datasets[0].data[i];
+                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) + '%' : '0.00%';
+                                            return { text: `${label}: ${percentage}`, fillStyle: style.backgroundColor, strokeStyle: style.borderColor, lineWidth: style.borderWidth, pointStyle: 'rect', hidden: !chart.getDataVisibility(i), index: i };
+                                        });
+                                    }
+                                    return [];
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(2) + '%' : '0.00%';
+                                        label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed) + ` (${percentage})`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Barras (Comissão vs. Quantidade)
+            const barCtx = document.getElementById('bar-chart').getContext('2d');
+            barChartInstance = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Comissão (R$)',
+                            data: commissionValues,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Quantidade',
+                            data: quantityValues,
+                            backgroundColor: 'rgba(236, 72, 153, 0.7)',
+                            borderColor: 'rgba(236, 72, 153, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Comissão (R$)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Quantidade'
+                            },
+                            grid: {
+                                drawOnChartArea: false, // only want the grid lines for one axis to show up
+                            },
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                           callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        if (context.dataset.yAxisID === 'y') {
+                                           label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
+                                        } else {
+                                            label += context.parsed.y;
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function generateAnalysis() {
+            geminiButton.disabled = true;
+            geminiOutput.innerHTML = '<p class="text-center">Analisando dados e gerando insights... Por favor, aguarde.</p>';
+
+            const totalCommissionText = totalValueElement.textContent;
+            const totalQuantityText = totalQuantityElement.textContent;
+            const totalOrdersText = totalOrdersElement.textContent;
+            
+            let channelMetricsString = Object.entries(channelMetricsStore)
+                .map(([channel, metrics]) => `- ${channel}: ${metrics.orders} pedidos, ${metrics.quantity} produtos vendidos.`)
+                .join('\n');
+
+            const topSubIds = [...new Set(commissionDataStore.filter(p => p.subId !== 'N/A').map(p => p.subId))].slice(0, 5).join(', ');
+
+            const prompt = `
+                Você é um especialista em marketing de afiliados e análise de dados. Analise o seguinte resumo de performance de um relatório de comissões e forneça insights e recomendações.
+                **Dados do Relatório:**
+                - Valor Total da Comissão: ${totalCommissionText}
+                - Quantidade Total de Produtos Vendidos: ${totalQuantityText}
+                - Total de Pedidos: ${totalOrdersText}
+                **Performance por Canal:**
+                ${channelMetricsString}
+                **Principais campanhas/produtos (Sub IDs):**
+                ${topSubIds}
+                **Sua Tarefa:**
+                Baseado nos dados, escreva uma análise concisa em português. Organize sua resposta da seguinte forma, usando títulos em negrito (ex: **Título**):
+                **Análise Geral:**
+                Um parágrafo resumindo a performance geral.
+                **Destaques por Canal:**
+                - Identifique o canal com melhor performance e explique por que ele pode estar funcionando bem.
+                - Identifique o canal com menor performance e sugira possíveis motivos.
+                **Recomendações Acionáveis:**
+                - Forneça 2 a 3 recomendações claras e práticas para otimizar os resultados.
+                **Sugestões de Conteúdo:**
+                - Com base nos Sub IDs de melhor performance, sugira 1 ou 2 ideias de conteúdo para o canal mais forte.
+                Seja direto, profissional e foque em conselhos práticos. Formate a resposta com parágrafos e listas de tópicos.
+            `;
+            
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0) {
+                    let text = result.candidates[0].content.parts[0].text;
+                    text = text.replace(/\*\*(.*?)\*\*/g, '<h4>$1</h4>');
+                    text = text.replace(/^- (.*$)/gm, '<li>$1</li>');
+                    text = text.replace(/(\r\n|\n|\r)/gm, '<br>');
+                    text = text.replace(/(<br>){2,}/g, '<br><br>');
+                    text = text.replace(/<li>/g, '<ul><li>');
+                    text = text.replace(/<\/li><br>/g, '</li></ul><br>');
+                    text = text.replace(/<\/li><br><ul>/g, '</li><li>');
+
+                    geminiOutput.innerHTML = text;
+                } else {
+                    geminiOutput.innerHTML = '<p class="text-red-500">Não foi possível gerar a análise. A resposta da IA estava vazia.</p>';
+                }
+
+            } catch (error) {
+                console.error("Erro ao chamar a API Gemini:", error);
+                geminiOutput.innerHTML = `<p class="text-red-500">Ocorreu um erro ao tentar gerar a análise. Por favor, tente novamente. Detalhes: ${error.message}</p>`;
+            } finally {
+                geminiButton.disabled = false;
+            }
+        }
+    </script>
+
+</body>
+</html>

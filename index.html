@@ -81,17 +81,29 @@
 
                 <!-- Tabela de Dados -->
                 <div id="table-section" class="mt-8 hidden">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
                         <h2 class="text-xl font-bold text-gray-800">Detalhes dos Pedidos</h2>
-                        <button id="toggle-table-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
-                            Ocultar Tabela
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="sub-id-filter" placeholder="Filtrar por Sub ID..." class="border rounded-lg px-2 py-1" list="sub-id-options">
+                            <datalist id="sub-id-options"></datalist>
+                            <button id="clear-filter-btn" class="bg-gray-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-gray-600 transition-colors text-sm">Limpar</button>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="toggle-order-id-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
+                                Mostrar ID do Pedido
+                            </button>
+                            <button id="toggle-table-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
+                                Ocultar Tabela
+                            </button>
+                        </div>
                     </div>
                     <div id="table-wrapper" class="overflow-x-auto transition-all duration-300">
                         <table class="min-w-full bg-white">
                             <thead class="bg-gray-800 text-white">
                                 <tr>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">ID do Pedido</th>
+                                    <th class="order-id-col hidden text-left py-3 px-4 uppercase font-semibold text-sm">ID do Pedido</th>
+                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Data do Clique</th>
+                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Data do Pedido</th>
                                     <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Sub ID</th>
                                     <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Canal</th>
                                     <th id="sort-quantity" class="sortable text-center py-3 px-4 uppercase font-semibold text-sm">Quantidade <span id="icon-quantity"></span></th>
@@ -150,6 +162,7 @@
         const tableSection = document.getElementById('table-section');
         const tableWrapper = document.getElementById('table-wrapper');
         const toggleTableBtn = document.getElementById('toggle-table-btn');
+        const toggleOrderIdBtn = document.getElementById('toggle-order-id-btn');
         const tableBody = document.getElementById('table-body');
         const totalsSection = document.getElementById('totals-section');
         const totalValueElement = document.getElementById('total-value');
@@ -163,6 +176,9 @@
         const chartsSection = document.getElementById('charts-section');
         const chartsWrapper = document.getElementById('charts-wrapper');
         const toggleChartsBtn = document.getElementById('toggle-charts-btn');
+        const subIdFilterInput = document.getElementById('sub-id-filter');
+        const clearFilterBtn = document.getElementById('clear-filter-btn');
+        const subIdOptions = document.getElementById('sub-id-options');
 
         // Estado da aplicação
         let commissionDataStore = [];
@@ -177,6 +193,9 @@
         document.getElementById('sort-commission').addEventListener('click', () => sortTableBy('commission'));
         toggleTableBtn.addEventListener('click', toggleTableVisibility);
         toggleChartsBtn.addEventListener('click', toggleChartsVisibility);
+        toggleOrderIdBtn.addEventListener('click', toggleOrderIdVisibility);
+        subIdFilterInput.addEventListener('input', applyFilter);
+        clearFilterBtn.addEventListener('click', clearFilter);
         geminiButton.addEventListener('click', generateAnalysis);
 
         function toggleTableVisibility() {
@@ -187,6 +206,43 @@
         function toggleChartsVisibility() {
             chartsWrapper.classList.toggle('hidden');
             toggleChartsBtn.textContent = chartsWrapper.classList.contains('hidden') ? 'Mostrar Gráficos' : 'Ocultar Gráficos';
+        }
+
+        function toggleOrderIdVisibility() {
+            const columns = document.querySelectorAll('.order-id-col');
+            let isHidden;
+            columns.forEach(col => {
+                col.classList.toggle('hidden');
+                isHidden = col.classList.contains('hidden');
+            });
+            toggleOrderIdBtn.textContent = isHidden ? 'Mostrar ID do Pedido' : 'Ocultar ID do Pedido';
+        }
+        
+        function applyFilter() {
+            const searchTerm = subIdFilterInput.value.toLowerCase();
+            const filteredData = commissionDataStore.filter(item => 
+                item.subId.toLowerCase().includes(searchTerm)
+            );
+            populateTable(filteredData);
+            calculateTotals(filteredData);
+            renderCharts(filteredData);
+        }
+
+        function clearFilter() {
+            subIdFilterInput.value = '';
+            populateTable(commissionDataStore);
+            calculateTotals(commissionDataStore);
+            renderCharts(commissionDataStore);
+        }
+        
+        function populateFilterOptions(data) {
+            const uniqueSubIds = [...new Set(data.map(item => item.subId).filter(id => id !== 'N/A'))];
+            subIdOptions.innerHTML = '';
+            uniqueSubIds.forEach(id => {
+                const option = document.createElement('option');
+                option.value = id;
+                subIdOptions.appendChild(option);
+            });
         }
 
         function handleFileSelect(event) {
@@ -217,13 +273,15 @@
         }
 
         function processData(data) {
-            if (data.length > 0 && (!data[0].hasOwnProperty('ID do pedido') || !data[0].hasOwnProperty('Comissão líquida do afiliado(R$)') || !data[0].hasOwnProperty('Qtd') || !data[0].hasOwnProperty('Canal'))) {
-                alert('O arquivo CSV não contém as colunas necessárias: "ID do pedido", "Comissão líquida do afiliado(R$)", "Qtd" e "Canal"');
+            if (data.length > 0 && (!data[0].hasOwnProperty('ID do pedido') || !data[0].hasOwnProperty('Comissão líquida do afiliado(R$)') || !data[0].hasOwnProperty('Qtd') || !data[0].hasOwnProperty('Canal') || !data[0].hasOwnProperty('Horário do pedido') || !data[0].hasOwnProperty('Tempo dos Cliques'))) {
+                alert('O arquivo CSV não contém as colunas necessárias: "ID do pedido", "Comissão líquida do afiliado(R$)", "Qtd", "Canal", "Horário do pedido" e "Tempo dos Cliques"');
                 return;
             }
 
             commissionDataStore = data.map(item => ({
                 orderId: item['ID do pedido'],
+                orderDate: item['Horário do pedido'] || 'N/A',
+                clickDate: item['Tempo dos Cliques'] || 'N/A',
                 subId: item['Sub_id1'] || 'N/A',
                 channel: item['Canal'] || 'N/A',
                 quantity: item['Qtd'] || 0,
@@ -236,9 +294,8 @@
             geminiSection.classList.remove('hidden');
             chartsSection.classList.remove('hidden');
 
-            populateTable(commissionDataStore);
-            calculateTotals(commissionDataStore);
-            renderCharts(commissionDataStore);
+            populateFilterOptions(commissionDataStore);
+            clearFilter();
         }
 
         function sortTableBy(column) {
@@ -249,13 +306,18 @@
                 sortState.direction = 'desc';
             }
 
-            commissionDataStore.sort((a, b) => {
+            const currentFilter = subIdFilterInput.value.toLowerCase();
+            const dataToSort = currentFilter 
+                ? commissionDataStore.filter(item => item.subId.toLowerCase().includes(currentFilter))
+                : [...commissionDataStore];
+
+            dataToSort.sort((a, b) => {
                 const valA = a[column];
                 const valB = b[column];
                 return sortState.direction === 'asc' ? valA - valB : valB - valA;
             });
 
-            populateTable(commissionDataStore);
+            populateTable(dataToSort);
             updateSortIcons();
         }
 
@@ -268,15 +330,26 @@
             }
         }
 
+        function formatDate(dateString) {
+            if (!dateString || dateString === 'N/A') return 'N/A';
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return dateString;
+            const options = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+            return date.toLocaleString('pt-BR', options);
+        }
+
         function populateTable(data) {
             tableBody.innerHTML = ''; 
+            const isOrderIdHidden = document.querySelector('th.order-id-col').classList.contains('hidden');
             
             data.forEach(item => {
                 const row = document.createElement('tr');
                 const formattedCommission = Number(item.commission).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 row.className = 'border-b border-gray-200 hover:bg-gray-100';
                 row.innerHTML = `
-                    <td class="py-3 px-4">${item.orderId}</td>
+                    <td class="order-id-col py-3 px-4 ${isOrderIdHidden ? 'hidden' : ''}">${item.orderId}</td>
+                    <td class="py-3 px-4 whitespace-nowrap">${formatDate(item.clickDate)}</td>
+                    <td class="py-3 px-4 whitespace-nowrap">${formatDate(item.orderDate)}</td>
                     <td class="py-3 px-4">${item.subId}</td>
                     <td class="py-3 px-4">${item.channel}</td>
                     <td class="py-3 px-4 text-center">${item.quantity}</td>
@@ -347,9 +420,7 @@
             if (barChartInstance) barChartInstance.destroy();
 
             const backgroundColors = labels.map(() => `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.7)`);
-            const borderColors = backgroundColors.map(color => color.replace('0.7', '1'));
-
-            // Gráfico de Pizza (Apenas comissão)
+            
             const pieCtx = document.getElementById('pie-chart').getContext('2d');
             pieChartInstance = new Chart(pieCtx, {
                 type: 'pie',
@@ -359,7 +430,6 @@
                         label: 'Comissão (R$)',
                         data: commissionValues,
                         backgroundColor: backgroundColors,
-                        borderColor: borderColors,
                         borderWidth: 1
                     }]
                 },
@@ -405,7 +475,6 @@
                 }
             });
 
-            // Gráfico de Barras (Comissão vs. Quantidade)
             const barCtx = document.getElementById('bar-chart').getContext('2d');
             barChartInstance = new Chart(barCtx, {
                 type: 'bar',
@@ -456,7 +525,7 @@
                                 text: 'Quantidade'
                             },
                             grid: {
-                                drawOnChartArea: false, // only want the grid lines for one axis to show up
+                                drawOnChartArea: false,
                             },
                         }
                     },

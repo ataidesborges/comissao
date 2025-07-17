@@ -56,10 +56,14 @@
 
                 <!-- Totais -->
                 <div id="totals-section" class="mb-8 p-6 bg-gray-50 border-t-4 border-gray-200 rounded-lg hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                         <div class="p-4 bg-white rounded-lg shadow">
                             <h3 class="text-lg font-semibold text-gray-700">Total de Pedidos</h3>
                             <p id="total-orders" class="text-3xl font-bold text-gray-800 mt-1">0</p>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg shadow">
+                            <h3 class="text-lg font-semibold text-gray-700">Pedidos Cancelados</h3>
+                            <p id="cancelled-orders" class="text-3xl font-bold text-red-500 mt-1">0</p>
                         </div>
                         <div class="p-4 bg-white rounded-lg shadow">
                             <h3 class="text-lg font-semibold text-gray-700">Total de Produtos</h3>
@@ -90,7 +94,7 @@
                         </div>
                         <div class="flex space-x-2">
                             <button id="toggle-order-id-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
-                                Mostrar ID do Pedido
+                                Mostrar ID
                             </button>
                             <button id="toggle-table-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
                                 Ocultar Tabela
@@ -168,6 +172,7 @@
         const totalValueElement = document.getElementById('total-value');
         const totalQuantityElement = document.getElementById('total-quantity');
         const totalOrdersElement = document.getElementById('total-orders');
+        const cancelledOrdersElement = document.getElementById('cancelled-orders');
         const tablePlaceholder = document.getElementById('table-placeholder');
         const channelTotalsElement = document.getElementById('channel-totals');
         const geminiSection = document.getElementById('gemini-section');
@@ -183,7 +188,6 @@
         // Estado da aplicação
         let commissionDataStore = [];
         let sortState = { column: null, direction: 'desc' };
-        let channelMetricsStore = {};
         let pieChartInstance;
         let barChartInstance;
 
@@ -215,7 +219,7 @@
                 col.classList.toggle('hidden');
                 isHidden = col.classList.contains('hidden');
             });
-            toggleOrderIdBtn.textContent = isHidden ? 'Mostrar ID do Pedido' : 'Ocultar ID do Pedido';
+            toggleOrderIdBtn.textContent = isHidden ? 'Mostrar ID' : 'Ocultar ID';
         }
         
         function applyFilter() {
@@ -223,16 +227,12 @@
             const filteredData = commissionDataStore.filter(item => 
                 item.subId.toLowerCase().includes(searchTerm)
             );
-            populateTable(filteredData);
-            calculateTotals(filteredData);
-            renderCharts(filteredData);
+            updateDisplay(filteredData);
         }
 
         function clearFilter() {
             subIdFilterInput.value = '';
-            populateTable(commissionDataStore);
-            calculateTotals(commissionDataStore);
-            renderCharts(commissionDataStore);
+            updateDisplay(commissionDataStore);
         }
         
         function populateFilterOptions(data) {
@@ -273,8 +273,8 @@
         }
 
         function processData(data) {
-            if (data.length > 0 && (!data[0].hasOwnProperty('ID do pedido') || !data[0].hasOwnProperty('Comissão líquida do afiliado(R$)') || !data[0].hasOwnProperty('Qtd') || !data[0].hasOwnProperty('Canal') || !data[0].hasOwnProperty('Horário do pedido') || !data[0].hasOwnProperty('Tempo dos Cliques'))) {
-                alert('O arquivo CSV não contém as colunas necessárias: "ID do pedido", "Comissão líquida do afiliado(R$)", "Qtd", "Canal", "Horário do pedido" e "Tempo dos Cliques"');
+            if (data.length > 0 && (!data[0].hasOwnProperty('ID do pedido') || !data[0].hasOwnProperty('Comissão líquida do afiliado(R$)') || !data[0].hasOwnProperty('Qtd') || !data[0].hasOwnProperty('Canal') || !data[0].hasOwnProperty('Horário do pedido') || !data[0].hasOwnProperty('Tempo dos Cliques') || !data[0].hasOwnProperty('Status do Pedido'))) {
+                alert('O arquivo CSV não contém as colunas necessárias, incluindo "Status do Pedido".');
                 return;
             }
 
@@ -285,7 +285,8 @@
                 subId: item['Sub_id1'] || 'N/A',
                 channel: item['Canal'] || 'N/A',
                 quantity: item['Qtd'] || 0,
-                commission: item['Comissão líquida do afiliado(R$)'] || 0
+                commission: item['Comissão líquida do afiliado(R$)'] || 0,
+                orderStatus: item['Status do Pedido'] || 'N/A'
             }));
 
             tablePlaceholder.classList.add('hidden');
@@ -295,7 +296,7 @@
             chartsSection.classList.remove('hidden');
 
             populateFilterOptions(commissionDataStore);
-            clearFilter();
+            updateDisplay(commissionDataStore);
         }
 
         function sortTableBy(column) {
@@ -306,10 +307,11 @@
                 sortState.direction = 'desc';
             }
 
-            const currentFilter = subIdFilterInput.value.toLowerCase();
-            const dataToSort = currentFilter 
-                ? commissionDataStore.filter(item => item.subId.toLowerCase().includes(currentFilter))
-                : [...commissionDataStore];
+            const searchTerm = subIdFilterInput.value.toLowerCase();
+            let dataToSort = [...commissionDataStore];
+            if (searchTerm) {
+                dataToSort = dataToSort.filter(item => item.subId.toLowerCase().includes(searchTerm));
+            }
 
             dataToSort.sort((a, b) => {
                 const valA = a[column];
@@ -337,6 +339,12 @@
             const options = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' };
             return date.toLocaleString('pt-BR', options);
         }
+        
+        function updateDisplay(data) {
+            populateTable(data);
+            calculateTotals(data);
+            renderCharts(data);
+        }
 
         function populateTable(data) {
             tableBody.innerHTML = ''; 
@@ -362,27 +370,29 @@
         function calculateTotals(data) {
             const totalCommission = data.reduce((sum, item) => sum + Number(item.commission), 0);
             const totalQuantity = data.reduce((sum, item) => sum + Number(item.quantity), 0);
-            const totalOrders = data.length;
+            const totalOrders = new Set(data.map(item => item.orderId)).size;
+            const cancelledOrders = data.filter(item => item.orderStatus === 'Cancelado').length;
             
             totalValueElement.textContent = totalCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             totalQuantityElement.textContent = totalQuantity;
             totalOrdersElement.textContent = totalOrders;
+            cancelledOrdersElement.textContent = cancelledOrders;
 
-            channelMetricsStore = data.reduce((acc, item) => {
+            const channelMetrics = data.reduce((acc, item) => {
                 const channel = item.channel || 'N/A';
                 const quantity = Number(item.quantity) || 0;
                 if (!acc[channel]) {
                     acc[channel] = { quantity: 0, orders: 0 };
                 }
                 acc[channel].quantity += quantity;
-                acc[channel].orders += 1;
+                acc[channel].orders += 1; // This still counts rows, which is fine for this context
                 return acc;
             }, {});
 
             channelTotalsElement.innerHTML = '';
-            if (Object.keys(channelMetricsStore).length > 0) {
-                for (const channel in channelMetricsStore) {
-                    const metrics = channelMetricsStore[channel];
+            if (Object.keys(channelMetrics).length > 0) {
+                for (const channel in channelMetrics) {
+                    const metrics = channelMetrics[channel];
                     const li = document.createElement('li');
                     li.className = 'flex justify-between items-center bg-white p-2 rounded-md shadow-sm';
                     li.innerHTML = `
@@ -563,12 +573,25 @@
             const totalCommissionText = totalValueElement.textContent;
             const totalQuantityText = totalQuantityElement.textContent;
             const totalOrdersText = totalOrdersElement.textContent;
+            const cancelledOrdersText = cancelledOrdersElement.textContent;
             
-            let channelMetricsString = Object.entries(channelMetricsStore)
+            const filteredData = commissionDataStore.filter(item => item.subId.toLowerCase().includes(subIdFilterInput.value.toLowerCase()));
+            const channelMetrics = filteredData.reduce((acc, item) => {
+                const channel = item.channel || 'N/A';
+                const quantity = Number(item.quantity) || 0;
+                if (!acc[channel]) {
+                    acc[channel] = { quantity: 0, orders: 0 };
+                }
+                acc[channel].quantity += quantity;
+                acc[channel].orders += 1;
+                return acc;
+            }, {});
+
+            let channelMetricsString = Object.entries(channelMetrics)
                 .map(([channel, metrics]) => `- ${channel}: ${metrics.orders} pedidos, ${metrics.quantity} produtos vendidos.`)
                 .join('\n');
 
-            const topSubIds = [...new Set(commissionDataStore.filter(p => p.subId !== 'N/A').map(p => p.subId))].slice(0, 5).join(', ');
+            const topSubIds = [...new Set(filteredData.filter(p => p.subId !== 'N/A').map(p => p.subId))].slice(0, 5).join(', ');
 
             const prompt = `
                 Você é um especialista em marketing de afiliados e análise de dados. Analise o seguinte resumo de performance de um relatório de comissões e forneça insights e recomendações.
@@ -576,6 +599,7 @@
                 - Valor Total da Comissão: ${totalCommissionText}
                 - Quantidade Total de Produtos Vendidos: ${totalQuantityText}
                 - Total de Pedidos: ${totalOrdersText}
+                - Pedidos Cancelados: ${cancelledOrdersText}
                 **Performance por Canal:**
                 ${channelMetricsString}
                 **Principais campanhas/produtos (Sub IDs):**
@@ -583,7 +607,7 @@
                 **Sua Tarefa:**
                 Baseado nos dados, escreva uma análise concisa em português. Organize sua resposta da seguinte forma, usando títulos em negrito (ex: **Título**):
                 **Análise Geral:**
-                Um parágrafo resumindo a performance geral.
+                Um parágrafo resumindo a performance geral, incluindo uma menção à taxa de cancelamento se for relevante.
                 **Destaques por Canal:**
                 - Identifique o canal com melhor performance e explique por que ele pode estar funcionando bem.
                 - Identifique o canal com menor performance e sugira possíveis motivos.

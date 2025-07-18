@@ -43,7 +43,10 @@
     <div class="container mx-auto p-4 sm:p-6 lg:p-8">
         <div class="bg-white rounded-xl shadow-lg overflow-hidden">
             <div class="p-6 sm:p-8">
-                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 text-center mb-6">Relatório de Comissão de Afiliado</h1>
+                <div class="text-center mb-6">
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Relatório de Comissão de Afiliado</h1>
+                    <p id="report-date" class="text-md text-gray-500 mt-1"></p>
+                </div>
 
                 <!-- Seção de Upload de Arquivo -->
                 <div class="mb-6 p-4 border-dashed border-2 border-gray-300 rounded-lg text-center">
@@ -163,6 +166,7 @@
         // Elementos da DOM
         const fileInput = document.getElementById('csv-file');
         const fileNameElement = document.getElementById('file-name');
+        const reportDateElement = document.getElementById('report-date');
         const tableSection = document.getElementById('table-section');
         const tableWrapper = document.getElementById('table-wrapper');
         const toggleTableBtn = document.getElementById('toggle-table-btn');
@@ -288,6 +292,21 @@
                 commission: item['Comissão líquida do afiliado(R$)'] || 0,
                 orderStatus: item['Status do Pedido'] || 'N/A'
             }));
+
+            const orderDates = commissionDataStore
+                .map(item => new Date(item.orderDate))
+                .filter(date => !isNaN(date.getTime()));
+
+            if (orderDates.length > 0) {
+                const minDate = new Date(Math.min.apply(null, orderDates));
+                const maxDate = new Date(Math.max.apply(null, orderDates));
+                const formatDateForTitle = (date) => date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const formattedMinDate = formatDateForTitle(minDate);
+                const formattedMaxDate = formatDateForTitle(maxDate);
+                reportDateElement.textContent = formattedMinDate === formattedMaxDate ? `Período do Relatório: ${formattedMinDate}` : `Período do Relatório: ${formattedMinDate} a ${formattedMaxDate}`;
+            } else {
+                reportDateElement.textContent = 'Período não identificado';
+            }
 
             tablePlaceholder.classList.add('hidden');
             totalsSection.classList.remove('hidden');

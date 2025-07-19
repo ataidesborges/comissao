@@ -85,6 +85,39 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Seção de Gráficos -->
+                <div id="charts-section" class="mt-8 border-t-4 border-green-500 rounded-lg bg-green-50 p-6 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-green-800">Visualização Gráfica por Sub ID</h2>
+                        <button id="toggle-charts-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
+                            Ocultar Gráficos
+                        </button>
+                    </div>
+                    <div id="charts-wrapper" class="transition-all duration-300">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6 items-center">
+                            <div class="flex flex-col items-center">
+                                <h3 class="text-lg font-semibold text-center mb-2">Comissão por Sub ID (Pizza)</h3>
+                                <div class="relative w-1/2">
+                                    <canvas id="pie-chart"></canvas>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-center mb-2">Comissão vs. Quantidade por Sub ID</h3>
+                                <canvas id="bar-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção Gemini API -->
+                <div id="gemini-section" class="mt-8 border-t-4 border-purple-500 rounded-lg bg-purple-50 p-6 hidden">
+                    <h2 class="text-2xl font-bold text-purple-800 mb-4">Análise de Performance com IA</h2>
+                    <button id="gemini-button" class="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center disabled:bg-purple-300">
+                        <span class="mr-2">✨</span> Gerar Análise de Performance
+                    </button>
+                    <div id="gemini-analysis-output" class="mt-4 text-gray-700 prose"></div>
+                </div>
 
                 <!-- Tabela de Dados -->
                 <div id="table-section" class="mt-8 hidden">
@@ -123,39 +156,6 @@
                 </div>
                  <div id="table-placeholder" class="text-center py-10 text-gray-500">
                     <p>Aguardando o envio de um arquivo...</p>
-                </div>
-                
-                <!-- Seção de Gráficos -->
-                <div id="charts-section" class="mt-8 border-t-4 border-green-500 rounded-lg bg-green-50 p-6 hidden">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-bold text-green-800">Visualização Gráfica por Sub ID</h2>
-                        <button id="toggle-charts-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
-                            Ocultar Gráficos
-                        </button>
-                    </div>
-                    <div id="charts-wrapper" class="transition-all duration-300">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6 items-center">
-                            <div class="flex flex-col items-center">
-                                <h3 class="text-lg font-semibold text-center mb-2">Comissão por Sub ID (Pizza)</h3>
-                                <div class="relative w-1/2">
-                                    <canvas id="pie-chart"></canvas>
-                                </div>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-center mb-2">Comissão vs. Quantidade por Sub ID</h3>
-                                <canvas id="bar-chart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Seção Gemini API -->
-                <div id="gemini-section" class="mt-8 border-t-4 border-purple-500 rounded-lg bg-purple-50 p-6 hidden">
-                    <h2 class="text-2xl font-bold text-purple-800 mb-4">Análise de Performance com IA</h2>
-                    <button id="gemini-button" class="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center disabled:bg-purple-300">
-                        <span class="mr-2">✨</span> Gerar Análise de Performance
-                    </button>
-                    <div id="gemini-analysis-output" class="mt-4 text-gray-700 prose"></div>
                 </div>
 
             </div>

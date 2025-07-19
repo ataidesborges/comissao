@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatório de Comissão de Afiliado com IA</title>
+    <title>Relatório de Comissão de Afiliado</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,20 +21,6 @@
         }
         .sortable:hover {
             background-color: #4a5568; /* gray-700 */
-        }
-        #gemini-analysis-output h4 {
-            font-size: 1.125rem; /* text-lg */
-            font-weight: 700; /* font-bold */
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-        }
-        #gemini-analysis-output ul {
-            list-style-type: disc;
-            padding-left: 1.5rem;
-            margin-bottom: 1rem;
-        }
-        #gemini-analysis-output p {
-            margin-bottom: 1rem;
         }
     </style>
 </head>
@@ -110,15 +96,6 @@
                     </div>
                 </div>
 
-                <!-- Seção Gemini API -->
-                <div id="gemini-section" class="mt-8 border-t-4 border-purple-500 rounded-lg bg-purple-50 p-6 hidden">
-                    <h2 class="text-2xl font-bold text-purple-800 mb-4">Análise de Performance com IA</h2>
-                    <button id="gemini-button" class="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center disabled:bg-purple-300">
-                        <span class="mr-2">✨</span> Gerar Análise de Performance
-                    </button>
-                    <div id="gemini-analysis-output" class="mt-4 text-gray-700 prose"></div>
-                </div>
-
                 <!-- Tabela de Dados -->
                 <div id="table-section" class="mt-8 hidden">
                     <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
@@ -179,9 +156,6 @@
         const cancelledOrdersElement = document.getElementById('cancelled-orders');
         const tablePlaceholder = document.getElementById('table-placeholder');
         const channelTotalsElement = document.getElementById('channel-totals');
-        const geminiSection = document.getElementById('gemini-section');
-        const geminiButton = document.getElementById('gemini-button');
-        const geminiOutput = document.getElementById('gemini-analysis-output');
         const chartsSection = document.getElementById('charts-section');
         const chartsWrapper = document.getElementById('charts-wrapper');
         const toggleChartsBtn = document.getElementById('toggle-charts-btn');
@@ -204,7 +178,6 @@
         toggleOrderIdBtn.addEventListener('click', toggleOrderIdVisibility);
         subIdFilterInput.addEventListener('input', applyFilter);
         clearFilterBtn.addEventListener('click', clearFilter);
-        geminiButton.addEventListener('click', generateAnalysis);
 
         function toggleTableVisibility() {
             tableWrapper.classList.toggle('hidden');
@@ -311,7 +284,6 @@
             tablePlaceholder.classList.add('hidden');
             totalsSection.classList.remove('hidden');
             tableSection.classList.remove('hidden');
-            geminiSection.classList.remove('hidden');
             chartsSection.classList.remove('hidden');
 
             populateFilterOptions(commissionDataStore);
@@ -583,99 +555,6 @@
                     }
                 }
             });
-        }
-
-        async function generateAnalysis() {
-            geminiButton.disabled = true;
-            geminiOutput.innerHTML = '<p class="text-center">Analisando dados e gerando insights... Por favor, aguarde.</p>';
-
-            const totalCommissionText = totalValueElement.textContent;
-            const totalQuantityText = totalQuantityElement.textContent;
-            const totalOrdersText = totalOrdersElement.textContent;
-            const cancelledOrdersText = cancelledOrdersElement.textContent;
-            
-            const filteredData = commissionDataStore.filter(item => item.subId.toLowerCase().includes(subIdFilterInput.value.toLowerCase()));
-            const channelMetrics = filteredData.reduce((acc, item) => {
-                const channel = item.channel || 'N/A';
-                const quantity = Number(item.quantity) || 0;
-                if (!acc[channel]) {
-                    acc[channel] = { quantity: 0, orders: 0 };
-                }
-                acc[channel].quantity += quantity;
-                acc[channel].orders += 1;
-                return acc;
-            }, {});
-
-            let channelMetricsString = Object.entries(channelMetrics)
-                .map(([channel, metrics]) => `- ${channel}: ${metrics.orders} pedidos, ${metrics.quantity} produtos vendidos.`)
-                .join('\n');
-
-            const topSubIds = [...new Set(filteredData.filter(p => p.subId !== 'N/A').map(p => p.subId))].slice(0, 5).join(', ');
-
-            const prompt = `
-                Você é um especialista em marketing de afiliados e análise de dados. Analise o seguinte resumo de performance de um relatório de comissões e forneça insights e recomendações.
-                **Dados do Relatório:**
-                - Valor Total da Comissão: ${totalCommissionText}
-                - Quantidade Total de Produtos Vendidos: ${totalQuantityText}
-                - Total de Pedidos: ${totalOrdersText}
-                - Pedidos Cancelados: ${cancelledOrdersText}
-                **Performance por Canal:**
-                ${channelMetricsString}
-                **Principais campanhas/produtos (Sub IDs):**
-                ${topSubIds}
-                **Sua Tarefa:**
-                Baseado nos dados, escreva uma análise concisa em português. Organize sua resposta da seguinte forma, usando títulos em negrito (ex: **Título**):
-                **Análise Geral:**
-                Um parágrafo resumindo a performance geral, incluindo uma menção à taxa de cancelamento se for relevante.
-                **Destaques por Canal:**
-                - Identifique o canal com melhor performance e explique por que ele pode estar funcionando bem.
-                - Identifique o canal com menor performance e sugira possíveis motivos.
-                **Recomendações Acionáveis:**
-                - Forneça 2 a 3 recomendações claras e práticas para otimizar os resultados.
-                **Sugestões de Conteúdo:**
-                - Com base nos Sub IDs de melhor performance, sugira 1 ou 2 ideias de conteúdo para o canal mais forte.
-                Seja direto, profissional e foque em conselhos práticos. Formate a resposta com parágrafos e listas de tópicos.
-            `;
-            
-            try {
-                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-                const payload = { contents: chatHistory };
-                const apiKey = ""; 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-                
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                
-                if (result.candidates && result.candidates.length > 0) {
-                    let text = result.candidates[0].content.parts[0].text;
-                    text = text.replace(/\*\*(.*?)\*\*/g, '<h4>$1</h4>');
-                    text = text.replace(/^- (.*$)/gm, '<li>$1</li>');
-                    text = text.replace(/(\r\n|\n|\r)/gm, '<br>');
-                    text = text.replace(/(<br>){2,}/g, '<br><br>');
-                    text = text.replace(/<li>/g, '<ul><li>');
-                    text = text.replace(/<\/li><br>/g, '</li></ul><br>');
-                    text = text.replace(/<\/li><br><ul>/g, '</li><li>');
-
-                    geminiOutput.innerHTML = text;
-                } else {
-                    geminiOutput.innerHTML = '<p class="text-red-500">Não foi possível gerar a análise. A resposta da IA estava vazia.</p>';
-                }
-
-            } catch (error) {
-                console.error("Erro ao chamar a API Gemini:", error);
-                geminiOutput.innerHTML = `<p class="text-red-500">Ocorreu um erro ao tentar gerar a análise. Por favor, tente novamente. Detalhes: ${error.message}</p>`;
-            } finally {
-                geminiButton.disabled = false;
-            }
         }
     </script>
 

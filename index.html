@@ -93,6 +93,13 @@
                                 <canvas id="bar-chart"></canvas>
                             </div>
                         </div>
+                        <!-- Nova Legenda -->
+                        <div class="mt-8 border-t pt-4">
+                            <h3 class="text-lg font-semibold text-center mb-4">Legenda de Comissões por Sub ID</h3>
+                            <div id="charts-legend" class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
+                                <!-- A legenda será inserida aqui via JavaScript -->
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -159,6 +166,7 @@
         const chartsSection = document.getElementById('charts-section');
         const chartsWrapper = document.getElementById('charts-wrapper');
         const toggleChartsBtn = document.getElementById('toggle-charts-btn');
+        const chartsLegend = document.getElementById('charts-legend');
         const subIdFilterInput = document.getElementById('sub-id-filter');
         const clearFilterBtn = document.getElementById('clear-filter-btn');
         const subIdOptions = document.getElementById('sub-id-options');
@@ -373,17 +381,20 @@
                 const channel = item.channel || 'N/A';
                 const quantity = Number(item.quantity) || 0;
                 if (!acc[channel]) {
-                    acc[channel] = { quantity: 0, orders: 0 };
+                    acc[channel] = { quantity: 0, orderIds: new Set() };
                 }
                 acc[channel].quantity += quantity;
-                acc[channel].orders += 1; // This still counts rows, which is fine for this context
+                acc[channel].orderIds.add(item.orderId);
                 return acc;
             }, {});
 
             channelTotalsElement.innerHTML = '';
             if (Object.keys(channelMetrics).length > 0) {
                 for (const channel in channelMetrics) {
-                    const metrics = channelMetrics[channel];
+                    const metrics = {
+                        quantity: channelMetrics[channel].quantity,
+                        orders: channelMetrics[channel].orderIds.size
+                    };
                     const li = document.createElement('li');
                     li.className = 'flex justify-between items-center bg-white p-2 rounded-md shadow-sm';
                     li.innerHTML = `
@@ -555,6 +566,25 @@
                     }
                 }
             });
+            
+            // Preencher legenda customizada
+            chartsLegend.innerHTML = '';
+            const sortedSubIds = Object.entries(subIdMetrics).sort(([,a], [,b]) => b.commission - a.commission);
+
+            if (sortedSubIds.length > 0) {
+                sortedSubIds.forEach(([subId, metrics]) => {
+                    const formattedCommission = metrics.commission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'flex items-center bg-white p-2 rounded-md shadow-sm';
+                    legendItem.innerHTML = `
+                        <span class="font-semibold text-gray-700">${subId}:</span>
+                        <span class="ml-2 font-bold text-blue-600">${formattedCommission}</span>
+                    `;
+                    chartsLegend.appendChild(legendItem);
+                });
+            } else {
+                chartsLegend.innerHTML = '<p class="text-gray-500">Nenhum dado para exibir na legenda.</p>';
+            }
         }
     </script>
 

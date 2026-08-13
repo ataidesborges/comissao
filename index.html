@@ -257,7 +257,7 @@
         <section id="charts-section" class="hidden space-y-6">
             <div class="glass-card p-5 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
                 
-                <!-- Cabeçalho do Gráfico e Botão de Ocultar -->
+                <!-- Cabeçalho do Gráfico e Botão de Ocultar/Exibir -->
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <div class="flex items-center gap-2">
@@ -269,52 +269,56 @@
                         <p class="text-xs text-slate-500 mt-1">Comparação de Comissão Líquida (R$) e Quantidade Vendida (unidades)</p>
                     </div>
 
-                    <button id="toggle-charts-btn" class="w-full sm:w-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors">
-                        Ocultar Gráfico
+                    <button id="toggle-charts-btn" class="w-full sm:w-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        <span>Mostrar Gráfico de Barras</span>
                     </button>
                 </div>
 
                 <div id="charts-wrapper" class="space-y-6">
                     
-                    <!-- Barra de Ferramentas / Filtros do Gráfico -->
-                    <div class="bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-slate-700">Quantidade Exibida:</span>
-                            <select id="chart-limit-select" class="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-shopee-500 outline-none">
-                                <option value="10">Top 10 Sub IDs</option>
-                                <option value="20">Top 20 Sub IDs</option>
-                                <option value="50">Top 50 Sub IDs</option>
-                                <option value="all" selected>Mostrar Todos os Itens</option>
-                            </select>
+                    <!-- Container do Gráfico de Barras (Oculto por Padrão) -->
+                    <div id="bar-chart-container" class="hidden space-y-6 transition-all duration-300">
+                        <!-- Barra de Ferramentas / Filtros do Gráfico -->
+                        <div class="bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-700">Quantidade Exibida:</span>
+                                <select id="chart-limit-select" class="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-shopee-500 outline-none">
+                                    <option value="10">Top 10 Sub IDs</option>
+                                    <option value="20">Top 20 Sub IDs</option>
+                                    <option value="50">Top 50 Sub IDs</option>
+                                    <option value="all" selected>Mostrar Todos os Itens</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-700">Ordenação do Gráfico:</span>
+                                <select id="chart-sort-select" class="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-shopee-500 outline-none">
+                                    <option value="commission-desc" selected>Maior Comissão (R$)</option>
+                                    <option value="quantity-desc">Maior Volume (un)</option>
+                                    <option value="name-asc">Ordem Alfabética (A-Z)</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-slate-700">Ordenação do Gráfico:</span>
-                            <select id="chart-sort-select" class="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-shopee-500 outline-none">
-                                <option value="commission-desc" selected>Maior Comissão (R$)</option>
-                                <option value="quantity-desc">Maior Volume (un)</option>
-                                <option value="name-asc">Ordem Alfabética (A-Z)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Container do Gráfico de Barras com ROLAGEM VERTICAL Dinâmica -->
-                    <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm">
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Visualização Gráfica</span>
-                            <span id="chart-item-count-badge" class="text-xs font-semibold text-shopee-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-200"></span>
-                        </div>
-                        
-                        <!-- Wrapper com Scroll Vertical e Altura Calculada Dinamicamente -->
-                        <div class="max-h-[550px] overflow-y-auto custom-scrollbar pr-2">
-                            <div id="canvas-dynamic-container" class="relative w-full min-h-[320px]">
-                                <canvas id="bar-chart"></canvas>
+                        <!-- Container do Canvas do Gráfico -->
+                        <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Visualização Gráfica</span>
+                                <span id="chart-item-count-badge" class="text-xs font-semibold text-shopee-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-200"></span>
+                            </div>
+                            
+                            <!-- Wrapper com Scroll Vertical e Altura Calculada Dinamicamente -->
+                            <div class="max-h-[550px] overflow-y-auto custom-scrollbar pr-2">
+                                <div id="canvas-dynamic-container" class="relative w-full min-h-[320px]">
+                                    <canvas id="bar-chart"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Detalhamento e Legenda Individual dos Sub IDs -->
-                    <div class="pt-4 border-t border-slate-200/80">
+                    <!-- Detalhamento e Legenda Individual dos Sub IDs (Sempre Visível) -->
+                    <div class="pt-2">
                         <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Ranking & Participação por Sub ID</h3>
                         <div id="charts-legend" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                             <!-- Preenchido via JS -->
@@ -522,6 +526,7 @@
         const channelTotalsElement = document.getElementById('channel-totals');
         const chartsSection = document.getElementById('charts-section');
         const chartsWrapper = document.getElementById('charts-wrapper');
+        const barChartContainer = document.getElementById('bar-chart-container');
         const toggleChartsBtn = document.getElementById('toggle-charts-btn');
         const chartsLegend = document.getElementById('charts-legend');
         const subIdFilterInput = document.getElementById('sub-id-filter');
@@ -882,6 +887,22 @@
         }
 
         function toggleChartsVisibility() {
+            const isHidden = barChartContainer.classList.toggle('hidden');
+            const btnSpan = toggleChartsBtn.querySelector('span');
+            
+            if (btnSpan) {
+                btnSpan.textContent = isHidden ? 'Mostrar Gráfico de Barras' : 'Ocultar Gráfico de Barras';
+            } else {
+                toggleChartsBtn.textContent = isHidden ? 'Mostrar Gráfico de Barras' : 'Ocultar Gráfico de Barras';
+            }
+
+            // Recalcular e renderizar dimensões do Chart.js quando for exibido
+            if (!isHidden) {
+                renderCharts(getFilteredDataForCharts());
+            }
+        }
+
+        function toggleTableVisibility() {
             chartsWrapper.classList.toggle('hidden');
             toggleChartsBtn.textContent = chartsWrapper.classList.contains('hidden') ? 'Mostrar Gráfico' : 'Ocultar Gráfico';
         }
@@ -1207,14 +1228,24 @@
             const isMobile = window.innerWidth < 640;
             const barCtx = document.getElementById('bar-chart').getContext('2d');
 
-            // Criar Gradientes em Laranja Shopee
-            const gradientOrange = barCtx.createLinearGradient(0, 0, 400, 0);
-            gradientOrange.addColorStop(0, 'rgba(238, 77, 45, 0.9)');
-            gradientOrange.addColorStop(1, 'rgba(251, 146, 60, 0.7)');
+            const colorPalette = [
+                { main: '#f97316', bg: 'rgba(249, 115, 22, 0.85)', border: '#ea580c', text: '#c2410c', light: '#fff7ed' }, // Laranja
+                { main: '#3b82f6', bg: 'rgba(59, 130, 246, 0.85)', border: '#2563eb', text: '#1d4ed8', light: '#eff6ff' }, // Azul
+                { main: '#10b981', bg: 'rgba(16, 185, 129, 0.85)', border: '#059669', text: '#047857', light: '#ecfdf5' }, // Verde Emerald
+                { main: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.85)', border: '#7c3aed', text: '#6d28d9', light: '#f5f3ff' }, // Roxo
+                { main: '#ec4899', bg: 'rgba(236, 72, 153, 0.85)', border: '#db2777', text: '#be185d', light: '#fdf2f8' }, // Rosa
+                { main: '#06b6d4', bg: 'rgba(6, 182, 212, 0.85)', border: '#0891b2', text: '#0e7490', light: '#ecfeff' }, // Ciano
+                { main: '#f59e0b', bg: 'rgba(245, 158, 11, 0.85)', border: '#d97706', text: '#b45309', light: '#fffbeb' }, // Âmbar
+                { main: '#6366f1', bg: 'rgba(99, 102, 241, 0.85)', border: '#4f46e5', text: '#4338ca', light: '#eef2ff' }, // Índigo
+                { main: '#14b8a6', bg: 'rgba(20, 184, 166, 0.85)', border: '#0d9488', text: '#0f766e', light: '#f0fdfa' }, // Teal
+                { main: '#f43f5e', bg: 'rgba(244, 63, 94, 0.85)', border: '#e11d48', text: '#be123c', light: '#fff1f2' }, // Rose
+                { main: '#84cc16', bg: 'rgba(132, 204, 22, 0.85)', border: '#65a30d', text: '#4d7c0f', light: '#f7fee7' }, // Lima
+                { main: '#d946ef', bg: 'rgba(217, 70, 239, 0.85)', border: '#c026d3', text: '#a21caf', light: '#fdf4ff' }  // Fuchsia
+            ];
 
-            const gradientGreen = barCtx.createLinearGradient(0, 0, 400, 0);
-            gradientGreen.addColorStop(0, 'rgba(16, 185, 129, 0.9)');
-            gradientGreen.addColorStop(1, 'rgba(52, 211, 153, 0.7)');
+            const barColorsCommission = displayEntries.map((_, i) => colorPalette[i % colorPalette.length].bg);
+            const barBordersCommission = displayEntries.map((_, i) => colorPalette[i % colorPalette.length].border);
+            const barColorsQuantity = displayEntries.map((_, i) => colorPalette[i % colorPalette.length].bg.replace('0.85', '0.40'));
 
             barChartInstance = new Chart(barCtx, {
                 type: 'bar',
@@ -1224,18 +1255,18 @@
                         {
                             label: 'Comissão (R$)',
                             data: commissionValues,
-                            backgroundColor: gradientOrange,
-                            borderColor: '#d73211',
-                            borderWidth: 1,
+                            backgroundColor: barColorsCommission,
+                            borderColor: barBordersCommission,
+                            borderWidth: 1.5,
                             borderRadius: 8,
                             xAxisID: 'x'
                         },
                         {
                             label: 'Quantidade (un)',
                             data: quantityValues,
-                            backgroundColor: gradientGreen,
-                            borderColor: '#047857',
-                            borderWidth: 1,
+                            backgroundColor: barColorsQuantity,
+                            borderColor: barBordersCommission,
+                            borderWidth: 1.5,
                             borderRadius: 8,
                             xAxisID: 'x1'
                         }
@@ -1298,36 +1329,41 @@
                 }
             });
 
-            // Renderizar Cards de Sub ID na Legenda
             chartsLegend.innerHTML = '';
             if (displayEntries.length > 0) {
-                displayEntries.forEach(([subId, metrics]) => {
+                displayEntries.forEach(([subId, metrics], index) => {
+                    const color = colorPalette[index % colorPalette.length];
                     const formattedCommission = metrics.commission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     const pctVal = totalCommissionSum > 0 ? (metrics.commission / totalCommissionSum) * 100 : 0;
                     const pctStr = pctVal.toFixed(1) + '%';
 
                     const card = document.createElement('div');
-                    card.className = 'glass-card p-4 rounded-2xl border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition-all';
+                    card.className = 'glass-card p-4 rounded-2xl border flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden';
+                    card.style.borderColor = `${color.border}40`;
                     card.innerHTML = `
-                        <div>
+                        <div class="absolute top-0 left-0 bottom-0 w-1.5" style="background-color: ${color.main}"></div>
+                        <div class="pl-2">
                             <div class="flex items-center justify-between gap-2 mb-2">
-                                <span class="font-bold text-slate-900 text-xs sm:text-sm truncate" title="${subId}">${subId}</span>
-                                <span class="text-[10px] bg-orange-50 text-shopee-600 font-extrabold px-2 py-0.5 rounded-full border border-orange-200">${pctStr}</span>
+                                <div class="flex items-center gap-2 truncate">
+                                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${color.main}"></span>
+                                    <span class="font-bold text-slate-900 text-xs sm:text-sm truncate" title="${subId}">${subId}</span>
+                                </div>
+                                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border" style="background-color: ${color.light}; color: ${color.text}; border-color: ${color.border}40">${pctStr}</span>
                             </div>
                             
                             <!-- Barra de Progresso Visual de Representatividade -->
-                            <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mb-3">
-                                <div class="bg-shopee-500 h-full rounded-full" style="width: ${Math.min(100, pctVal)}%"></div>
+                            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
+                                <div class="h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, pctVal)}%; background-color: ${color.main}"></div>
                             </div>
 
                             <div class="space-y-1 text-xs">
                                 <div class="flex justify-between items-center">
                                     <span class="text-slate-500 font-medium">Comissão:</span>
-                                    <span class="font-bold text-shopee-600">${formattedCommission}</span>
+                                    <span class="font-bold" style="color: ${color.text}">${formattedCommission}</span>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <span class="text-slate-500 font-medium">Produtos:</span>
-                                    <span class="font-bold text-emerald-600">${metrics.quantity} un.</span>
+                                    <span class="font-bold text-slate-800">${metrics.quantity} un.</span>
                                 </div>
                             </div>
                         </div>

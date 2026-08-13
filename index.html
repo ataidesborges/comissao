@@ -1,156 +1,512 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="h-full bg-slate-50 text-slate-900">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatório de Comissão de Afiliado</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Relatório de Comissão de Afiliado - Integrado Shopee API</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PapaParse para manipulação de CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- Chart.js e Plugin DataLabels -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <!-- Fonte Inter & Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        shopee: {
+                            50: '#fff4f0',
+                            100: '#ffe6dc',
+                            500: '#ee4d2d',
+                            600: '#d73211',
+                            700: '#b2240a',
+                        }
+                    },
+                    boxShadow: {
+                        'glow': '0 0 25px -5px rgba(238, 77, 45, 0.2)',
+                        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
-        .file-input-label {
-            cursor: pointer;
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
         }
+
         .sortable {
             cursor: pointer;
-            transition: background-color 0.2s;
+            user-select: none;
+            transition: all 0.15s ease;
         }
         .sortable:hover {
-            background-color: #4a5568; /* gray-700 */
+            background-color: rgba(241, 245, 249, 0.8);
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Drag & Drop Highlight */
+        .drag-over {
+            border-color: #ee4d2d !important;
+            background-color: rgba(255, 244, 240, 0.6) !important;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="min-h-full flex flex-col antialiased bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-50/40 via-slate-50 to-slate-100/80">
 
-    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div class="p-6 sm:p-8">
-                <div class="text-center mb-6">
-                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Relatório de Comissão de Afiliado</h1>
-                    <p id="report-date" class="text-md text-gray-500 mt-1"></p>
-                </div>
-
-                <!-- Seção de Upload de Arquivo -->
-                <div class="mb-6 p-4 border-dashed border-2 border-gray-300 rounded-lg text-center">
-                    <label for="csv-file" class="file-input-label inline-block bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                        Selecionar Arquivo CSV
-                    </label>
-                    <input type="file" id="csv-file" class="hidden" accept=".csv">
-                    <p id="file-name" class="text-sm text-gray-500 mt-2">Nenhum arquivo selecionado</p>
-                </div>
-
-                <!-- Totais -->
-                <div id="totals-section" class="mb-8 p-6 bg-gray-50 border-t-4 border-gray-200 rounded-lg hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                        <div class="p-4 bg-white rounded-lg shadow">
-                            <h3 class="text-lg font-semibold text-gray-700">Total de Pedidos</h3>
-                            <p id="total-orders" class="text-3xl font-bold text-gray-800 mt-1">0</p>
-                        </div>
-                        <div class="p-4 bg-white rounded-lg shadow">
-                            <h3 class="text-lg font-semibold text-gray-700">Pedidos Cancelados</h3>
-                            <p id="cancelled-orders" class="text-3xl font-bold text-red-500 mt-1">0</p>
-                        </div>
-                        <div class="p-4 bg-white rounded-lg shadow">
-                            <h3 class="text-lg font-semibold text-gray-700">Total de Produtos</h3>
-                            <p id="total-quantity" class="text-3xl font-bold text-gray-800 mt-1">0</p>
-                        </div>
-                    </div>
-                    <div class="border-t border-gray-300 my-6"></div>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-xl font-semibold text-gray-700">Valor Total da Comissão:</span>
-                            <span id="total-value" class="text-3xl font-bold text-blue-600">R$ 0,00</span>
-                        </div>
-                        <div>
-                            <h3 class="text-xl font-semibold text-gray-700 mb-2">Totais por Canal:</h3>
-                            <ul id="channel-totals" class="space-y-2 text-gray-600"></ul>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Seção de Gráficos -->
-                <div id="charts-section" class="mt-8 border-t-4 border-green-500 rounded-lg bg-green-50 p-6 hidden">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-bold text-green-800">Visualização Gráfica por Sub ID</h2>
-                        <button id="toggle-charts-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
-                            Ocultar Gráficos
-                        </button>
-                    </div>
-                    <div id="charts-wrapper" class="transition-all duration-300">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6 items-center">
-                            <div class="flex flex-col items-center">
-                                <h3 class="text-lg font-semibold text-center mb-2">Comissão por Sub ID (Pizza)</h3>
-                                <div class="relative w-1/2">
-                                    <canvas id="pie-chart"></canvas>
-                                </div>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-center mb-2">Comissão vs. Quantidade por Sub ID</h3>
-                                <canvas id="bar-chart"></canvas>
-                            </div>
-                        </div>
-                        <!-- Nova Legenda -->
-                        <div class="mt-8 border-t pt-4">
-                            <h3 class="text-lg font-semibold text-center mb-4">Legenda de Comissões por Sub ID</h3>
-                            <div id="charts-legend" class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
-                                <!-- A legenda será inserida aqui via JavaScript -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tabela de Dados -->
-                <div id="table-section" class="mt-8 hidden">
-                    <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-                        <h2 class="text-xl font-bold text-gray-800">Detalhes dos Pedidos</h2>
-                        <div class="flex items-center gap-2">
-                            <input type="text" id="sub-id-filter" placeholder="Filtrar por Sub ID..." class="border rounded-lg px-2 py-1" list="sub-id-options">
-                            <datalist id="sub-id-options"></datalist>
-                            <button id="clear-filter-btn" class="bg-gray-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-gray-600 transition-colors text-sm">Limpar</button>
-                        </div>
-                        <div class="flex space-x-2">
-                            <button id="toggle-order-id-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
-                                Mostrar ID
-                            </button>
-                            <button id="toggle-table-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
-                                Ocultar Tabela
-                            </button>
-                        </div>
-                    </div>
-                    <div id="table-wrapper" class="overflow-x-auto transition-all duration-300">
-                        <table class="min-w-full bg-white">
-                            <thead class="bg-gray-800 text-white">
-                                <tr>
-                                    <th class="order-id-col hidden text-left py-3 px-4 uppercase font-semibold text-sm">ID do Pedido</th>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Data do Clique</th>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Data do Pedido</th>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Sub ID</th>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Canal</th>
-                                    <th id="sort-quantity" class="sortable text-center py-3 px-4 uppercase font-semibold text-sm">Quantidade <span id="icon-quantity"></span></th>
-                                    <th id="sort-commission" class="sortable text-right py-3 px-4 uppercase font-semibold text-sm">Comissão <span id="icon-commission"></span></th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-body" class="text-gray-700"></tbody>
-                        </table>
-                    </div>
-                </div>
-                 <div id="table-placeholder" class="text-center py-10 text-gray-500">
-                    <p>Aguardando o envio de um arquivo...</p>
-                </div>
-
+    <!-- Notificação Toast Flutuante -->
+    <div id="toast-notification" class="fixed top-5 right-5 left-5 sm:left-auto sm:max-w-md z-50 transform translate-y-[-150%] opacity-0 transition-all duration-300 pointer-events-none">
+        <div id="toast-container" class="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center space-x-3 border border-slate-700">
+            <div id="toast-icon" class="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
+            <span id="toast-message" class="text-xs sm:text-sm font-medium leading-snug"></span>
         </div>
     </div>
 
+    <!-- Navegação / Cabeçalho Superior -->
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-shopee-500 via-orange-500 to-amber-500 flex items-center justify-center text-white shadow-md shadow-shopee-500/20 font-black text-lg">
+                    A
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight flex items-center gap-2">
+                        Affiliate Analytics
+                        <span class="text-[10px] bg-orange-100 text-shopee-600 font-extrabold px-2 py-0.5 rounded-full border border-orange-200">Shopee API</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-500 font-medium">Painel de Desempenho & Comissões</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Botão de Conexão com API Shopee -->
+                <button id="open-shopee-modal-btn" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-shopee-500 hover:bg-shopee-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-shopee-500/20 active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <span>API Shopee</span>
+                </button>
+
+                <button id="load-sample-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-all border border-slate-200 shadow-sm">
+                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <span class="hidden sm:inline">Exemplo</span>
+                </button>
+                
+                <div id="status-badge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/80 rounded-full text-[11px] font-semibold text-emerald-700">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="status-badge-text">Dados Carregados</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-grow space-y-6 sm:space-y-8">
+        
+        <!-- Seção de Cabeçalho e Upload Dropzone -->
+        <section class="relative">
+            <div id="drop-zone" class="glass-card rounded-3xl p-6 sm:p-10 text-center border-2 border-dashed border-orange-200 hover:border-shopee-500 transition-all duration-300 group shadow-sm">
+                <input type="file" id="csv-file" class="hidden" accept=".csv">
+                
+                <div class="max-w-xl mx-auto space-y-4">
+                    <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-shopee-50 to-orange-100 text-shopee-500 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-300">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                    </div>
+
+                    <div>
+                        <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Sincronize via API ou Importe em CSV</h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto">Conecte sua conta do programa de afiliados Shopee via API oficial ou selecione o arquivo CSV exportado.</p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                        <button id="hero-shopee-btn" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-shopee-500 hover:bg-shopee-600 active:bg-shopee-700 text-white font-semibold py-3 px-6 rounded-2xl shadow-lg shadow-shopee-500/25 transition-all text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <span>Conectar API Shopee Afiliados</span>
+                        </button>
+
+                        <label for="csv-file" class="cursor-pointer w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 px-6 rounded-2xl shadow-md transition-all text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            <span>Subir CSV</span>
+                        </label>
+                    </div>
+
+                    <p id="file-name" class="text-xs font-semibold text-slate-500 truncate px-4 min-h-[18px]">Nenhuma fonte de dados conectada</p>
+                </div>
+            </div>
+            
+            <!-- Banner do Período Encontrado -->
+            <div id="period-banner" class="hidden mt-3 text-center">
+                <span id="report-date" class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-slate-200/70 text-slate-700 text-xs font-semibold rounded-full border border-slate-300/50">
+                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span>Período: -</span>
+                </span>
+            </div>
+        </section>
+
+        <!-- Totais de Vendas e Desempenho (KPI Cards) -->
+        <section id="totals-section" class="hidden space-y-6">
+            
+            <!-- Grid de Cards de Estatísticas Principais -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+                
+                <!-- Card 1: Comissão Total -->
+                <div class="col-span-2 sm:col-span-1 glass-card p-5 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-md transition-all relative overflow-hidden group">
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-shopee-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Comissão Total</span>
+                        <div class="w-8 h-8 rounded-xl bg-shopee-50 text-shopee-500 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                    </div>
+                    <div>
+                        <p id="total-value" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">R$ 0,00</p>
+                        <p id="avg-commission-label" class="text-[11px] text-slate-500 font-medium mt-1">Média/pedido: R$ 0,00</p>
+                    </div>
+                </div>
+
+                <!-- Card 2: Total de Pedidos -->
+                <div class="glass-card p-5 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Pedidos</span>
+                        <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                        </div>
+                    </div>
+                    <div>
+                        <p id="total-orders" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">0</p>
+                        <span class="text-[11px] text-slate-500 font-medium mt-1 inline-block">Pedidos validados</span>
+                    </div>
+                </div>
+
+                <!-- Card 3: Produtos Vendidos -->
+                <div class="glass-card p-5 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Itens Vendidos</span>
+                        <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                        </div>
+                    </div>
+                    <div>
+                        <p id="total-quantity" class="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight">0</p>
+                        <span class="text-[11px] text-slate-500 font-medium mt-1 inline-block">Unidades totais</span>
+                    </div>
+                </div>
+
+                <!-- Card 4: Cancelados -->
+                <div class="glass-card p-5 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-red-500 uppercase tracking-wider">Cancelados</span>
+                        <div class="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </div>
+                    </div>
+                    <div>
+                        <p id="cancelled-orders" class="text-2xl sm:text-3xl font-black text-red-600 tracking-tight">0</p>
+                        <span class="text-[11px] text-red-500/80 font-medium mt-1 inline-block">Pedidos estornados</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Totais por Canal de Venda -->
+            <div class="glass-card p-5 sm:p-6 rounded-3xl border border-slate-200/80">
+                <h3 class="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-shopee-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    Resumo de Desempenho por Canal
+                </h3>
+                <ul id="channel-totals" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs sm:text-sm"></ul>
+            </div>
+        </section>
+
+        <!-- Seção de Gráficos (Gráfico de Barras Horizontal Único) -->
+        <section id="charts-section" class="hidden space-y-6">
+            <div class="glass-card p-5 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+                
+                <!-- Cabeçalho do Gráfico e Botão de Ocultar -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="p-2 bg-orange-100 text-shopee-600 rounded-xl">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                            </span>
+                            <h2 class="text-lg sm:text-xl font-bold text-slate-900">Análise Comparativa por Sub ID</h2>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Comparação de Comissão Líquida (R$) e Quantidade Vendida (unidades)</p>
+                    </div>
+
+                    <button id="toggle-charts-btn" class="w-full sm:w-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors">
+                        Ocultar Gráfico
+                    </button>
+                </div>
+
+                <div id="charts-wrapper" class="space-y-6">
+                    
+                    <!-- Barra de Ferramentas / Filtros do Gráfico -->
+                    <div class="bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-700">Quantidade Exibida:</span>
+                            <select id="chart-limit-select" class="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-shopee-500 outline-none">
+                                <option value="10" selected>Top 10 Sub IDs</option>
+                                <option value="20">Top 20 Sub IDs</option>
+                                <option value="50">Top 50 Sub IDs</option>
+                                <option value="all">Mostrar Todos os Itens</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-700">Ordenação do Gráfico:</span>
+                            <select id="chart-sort-select" class="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-shopee-500 outline-none">
+                                <option value="commission-desc" selected>Maior Comissão (R$)</option>
+                                <option value="quantity-desc">Maior Volume (un)</option>
+                                <option value="name-asc">Ordem Alfabética (A-Z)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Container do Gráfico de Barras com ROLAGEM VERTICAL Dinâmica -->
+                    <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Visualização Gráfica</span>
+                            <span id="chart-item-count-badge" class="text-xs font-semibold text-shopee-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-200"></span>
+                        </div>
+                        
+                        <!-- Wrapper com Scroll Vertical e Altura Calculada Dinamicamente -->
+                        <div class="max-h-[550px] overflow-y-auto custom-scrollbar pr-2">
+                            <div id="canvas-dynamic-container" class="relative w-full min-h-[320px]">
+                                <canvas id="bar-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detalhamento e Legenda Individual dos Sub IDs -->
+                    <div class="pt-4 border-t border-slate-200/80">
+                        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Ranking & Participação por Sub ID</h3>
+                        <div id="charts-legend" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                            <!-- Preenchido via JS -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Seção da Tabela de Pedidos -->
+        <section id="table-section" class="hidden space-y-4">
+            
+            <!-- Barra de Controles e Busca da Tabela -->
+            <div class="glass-card p-4 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-base sm:text-lg font-bold text-slate-900">Detalhamento dos Pedidos</h2>
+                    <span id="record-count" class="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full"></span>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <!-- Input de Filtro por Sub ID -->
+                    <div class="relative flex-grow sm:w-64">
+                        <input type="text" id="sub-id-filter" placeholder="Filtrar por Sub ID..." class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-medium focus:ring-2 focus:ring-shopee-500 outline-none placeholder-slate-400" list="sub-id-options">
+                        <datalist id="sub-id-options"></datalist>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <button id="clear-filter-btn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-3 rounded-xl text-xs transition-colors">
+                            Limpar
+                        </button>
+                        <button id="toggle-order-id-btn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-3 rounded-xl text-xs transition-colors">
+                            Mostrar ID
+                        </button>
+                        <button id="toggle-table-btn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-3 rounded-xl text-xs transition-colors">
+                            Ocultar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Container da Tabela com Rolagem Suave -->
+            <div id="table-wrapper" class="overflow-x-auto custom-scrollbar rounded-3xl border border-slate-200/80 shadow-sm bg-white">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                    <thead class="bg-slate-900 text-white text-[11px] uppercase tracking-wider font-semibold">
+                        <tr>
+                            <th class="order-id-col hidden py-4 px-5">ID Pedido</th>
+                            <th class="py-4 px-5">Clique</th>
+                            <th class="py-4 px-5">Data Pedido</th>
+                            <th class="py-4 px-5">Sub ID</th>
+                            <th class="py-4 px-5">Canal</th>
+                            <th id="sort-quantity" class="sortable text-center py-4 px-5">Qtd <span id="icon-quantity"></span></th>
+                            <th id="sort-commission" class="sortable text-right py-4 px-5">Comissão <span id="icon-commission"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
+                </table>
+            </div>
+
+            <!-- Controles de Paginação -->
+            <div id="pagination-controls" class="flex items-center justify-between px-2 text-xs">
+                <span id="pagination-info" class="text-slate-500 font-medium">Exibindo 0 registros</span>
+                <div class="flex items-center gap-1">
+                    <button id="prev-page-btn" class="px-3 py-1.5 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 disabled:opacity-50 font-semibold">Anterior</button>
+                    <button id="next-page-btn" class="px-3 py-1.5 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 disabled:opacity-50 font-semibold">Próxima</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Placeholder Inicial / Vazio -->
+        <div id="table-placeholder" class="text-center py-16 px-4 glass-card border-2 border-dashed border-slate-200 rounded-3xl">
+            <div class="w-16 h-16 mx-auto bg-orange-50 text-shopee-500 rounded-2xl flex items-center justify-center mb-3">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </div>
+            <p class="font-bold text-slate-800 text-base">Nenhum dado sincronizado</p>
+            <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Conecte sua API do programa de afiliados Shopee ou faça upload de um CSV para gerar o relatório consolidado.</p>
+        </div>
+
+    </main>
+
+    <!-- MODAL DE CONEXÃO COM API SHOPEE AFILIADOS -->
+    <div id="shopee-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 transform scale-95 transition-transform duration-300 space-y-5 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+            
+            <button id="close-shopee-modal-btn" class="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-shopee-50 text-shopee-500 flex items-center justify-center font-bold text-xl border border-shopee-100">
+                    🛍️
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Conectar API Shopee Afiliados</h3>
+                    <p class="text-xs text-slate-500">Sincronização de relatórios de conversão via GraphQL</p>
+                </div>
+            </div>
+
+            <!-- Abas do Modal -->
+            <div class="flex bg-slate-100 p-1 rounded-2xl text-xs font-semibold">
+                <button id="tab-api-btn" class="flex-1 py-2 rounded-xl bg-white shadow-xs text-slate-900 transition-all">🔑 Chave API Direta</button>
+                <button id="tab-json-btn" class="flex-1 py-2 rounded-xl text-slate-500 hover:text-slate-900 transition-all">📋 Importar JSON</button>
+            </div>
+
+            <!-- Conteúdo Aba 1: Conexão por API -->
+            <form id="shopee-api-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">App ID / Key ID</label>
+                    <input type="text" id="shopee-app-id" placeholder="Ex: 123456789" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:ring-2 focus:ring-shopee-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">App Secret</label>
+                    <input type="password" id="shopee-app-secret" placeholder="••••••••••••••••••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:ring-2 focus:ring-shopee-500 outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Região / Servidor</label>
+                        <select id="shopee-region" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-shopee-500 outline-none">
+                            <option value="https://open-api.affiliate.shopee.com.br/graphql" selected>Brasil (.com.br)</option>
+                            <option value="https://open-api.affiliate.shopee.com/graphql">Global (.com)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Período de Vendas</label>
+                        <select id="shopee-date-range" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-shopee-500 outline-none">
+                            <option value="7">Últimos 7 dias</option>
+                            <option value="15">Últimos 15 dias</option>
+                            <option value="30" selected>Últimos 30 dias</option>
+                            <option value="60">Últimos 60 dias</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="save-credentials" class="w-4 h-4 text-shopee-500 rounded border-slate-300 focus:ring-shopee-500">
+                    <label for="save-credentials" class="text-xs text-slate-600 font-medium">Lembrar credenciais neste navegador</label>
+                </div>
+
+                <div class="pt-2 space-y-2">
+                    <button type="submit" id="sync-shopee-btn" class="w-full py-3 bg-shopee-500 hover:bg-shopee-600 active:bg-shopee-700 text-white font-bold rounded-2xl text-xs transition-all shadow-md shadow-shopee-500/20 flex items-center justify-center gap-2">
+                        <span id="sync-btn-spinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span id="sync-btn-text">Sincronizar Vendas Shopee</span>
+                    </button>
+
+                    <button type="button" id="demo-shopee-btn" class="w-full py-2.5 bg-orange-50 hover:bg-orange-100 text-shopee-600 font-semibold rounded-2xl text-xs transition-all border border-orange-200">
+                        ⚡ Simular Sincronização API Shopee
+                    </button>
+                </div>
+            </form>
+
+            <!-- Conteúdo Aba 2: Importador JSON Direct -->
+            <div id="shopee-json-form" class="hidden space-y-3">
+                <p class="text-xs text-slate-500">Cole a resposta da consulta GraphQL da API de Afiliados Shopee (`conversionReport`) para processar diretamente sem CORS.</p>
+                <textarea id="shopee-json-input" rows="6" placeholder='{"data": {"conversionReport": {"nodes": [{"orderId": "260813A1B2C", "purchaseTime": 1723550000, "subId": "instagram_bio", "itemQty": 2, "totalCommission": "45.90", "orderStatus": "COMPLETED"}]}}}' class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-shopee-500 outline-none"></textarea>
+                
+                <button type="button" id="import-json-btn" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl text-xs transition-all">
+                    Processar Resposta JSON
+                </button>
+            </div>
+
+            <!-- Ajuda / Guia Rápido -->
+            <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
+                <p class="font-bold text-slate-700">💡 Como obter credenciais da API de Afiliados Shopee:</p>
+                <ol class="list-decimal list-inside space-y-0.5 pl-1">
+                    <li>Acesse o <a href="https://affiliate.shopee.com.br/" target="_blank" class="text-shopee-600 underline font-semibold">Painel de Afiliados Shopee</a>.</li>
+                    <li>Vá na seção <strong>Open API / Configurações de API</strong>.</li>
+                    <li>Copie o seu <strong>App ID</strong> e <strong>App Secret</strong> fornecidos.</li>
+                </ol>
+            </div>
+
+        </div>
+    </div>
+
+    <footer class="py-6 border-t border-slate-200/80 text-center text-xs text-slate-400 font-medium bg-white/50">
+        Affiliate Analytics &copy; Painel Executivo com Conector de API Shopee Afiliados
+    </footer>
+
     <script>
-        // Elementos da DOM
+        // Registrar plugin de DataLabels do Chart.js
+        if (typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+        }
+
+        // Elementos DOM
         const fileInput = document.getElementById('csv-file');
+        const dropZone = document.getElementById('drop-zone');
         const fileNameElement = document.getElementById('file-name');
         const reportDateElement = document.getElementById('report-date');
+        const periodBanner = document.getElementById('period-banner');
         const tableSection = document.getElementById('table-section');
         const tableWrapper = document.getElementById('table-wrapper');
         const toggleTableBtn = document.getElementById('toggle-table-btn');
@@ -161,6 +517,7 @@
         const totalQuantityElement = document.getElementById('total-quantity');
         const totalOrdersElement = document.getElementById('total-orders');
         const cancelledOrdersElement = document.getElementById('cancelled-orders');
+        const avgCommissionLabel = document.getElementById('avg-commission-label');
         const tablePlaceholder = document.getElementById('table-placeholder');
         const channelTotalsElement = document.getElementById('channel-totals');
         const chartsSection = document.getElementById('charts-section');
@@ -170,12 +527,57 @@
         const subIdFilterInput = document.getElementById('sub-id-filter');
         const clearFilterBtn = document.getElementById('clear-filter-btn');
         const subIdOptions = document.getElementById('sub-id-options');
+        const recordCountElement = document.getElementById('record-count');
+        const statusBadge = document.getElementById('status-badge');
+        const statusBadgeText = document.getElementById('status-badge-text');
+        const loadSampleBtn = document.getElementById('load-sample-btn');
 
-        // Estado da aplicação
+        // Modal Shopee DOM
+        const shopeeModal = document.getElementById('shopee-modal');
+        const openShopeeModalBtn = document.getElementById('open-shopee-modal-btn');
+        const heroShopeeBtn = document.getElementById('hero-shopee-btn');
+        const closeShopeeModalBtn = document.getElementById('close-shopee-modal-btn');
+        const tabApiBtn = document.getElementById('tab-api-btn');
+        const tabJsonBtn = document.getElementById('tab-json-btn');
+        const shopeeApiForm = document.getElementById('shopee-api-form');
+        const shopeeJsonForm = document.getElementById('shopee-json-form');
+        const syncShopeeBtn = document.getElementById('sync-shopee-btn');
+        const syncBtnSpinner = document.getElementById('sync-btn-spinner');
+        const syncBtnText = document.getElementById('sync-btn-text');
+        const demoShopeeBtn = document.getElementById('demo-shopee-btn');
+        const importJsonBtn = document.getElementById('import-json-btn');
+        const shopeeJsonInput = document.getElementById('shopee-json-input');
+
+        // Controles de Gráfico e Paginação
+        const chartLimitSelect = document.getElementById('chart-limit-select');
+        const chartSortSelect = document.getElementById('chart-sort-select');
+        const chartItemCountBadge = document.getElementById('chart-item-count-badge');
+        const canvasDynamicContainer = document.getElementById('canvas-dynamic-container');
+
+        const prevPageBtn = document.getElementById('prev-page-btn');
+        const nextPageBtn = document.getElementById('next-page-btn');
+        const paginationInfo = document.getElementById('pagination-info');
+
+        // Estado Global
         let commissionDataStore = [];
+        let filteredDataStore = [];
         let sortState = { column: null, direction: 'desc' };
-        let pieChartInstance;
-        let barChartInstance;
+        let barChartInstance = null;
+        let currentPage = 1;
+        const pageSize = 15;
+
+        // Carregar Credenciais Salvas da Shopee
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedAppId = localStorage.getItem('shopee_app_id');
+            const savedRegion = localStorage.getItem('shopee_region');
+            if (savedAppId) {
+                document.getElementById('shopee-app-id').value = savedAppId;
+                document.getElementById('save-credentials').checked = true;
+            }
+            if (savedRegion) {
+                document.getElementById('shopee-region').value = savedRegion;
+            }
+        });
 
         // Event Listeners
         fileInput.addEventListener('change', handleFileSelect);
@@ -186,42 +588,330 @@
         toggleOrderIdBtn.addEventListener('click', toggleOrderIdVisibility);
         subIdFilterInput.addEventListener('input', applyFilter);
         clearFilterBtn.addEventListener('click', clearFilter);
+        loadSampleBtn.addEventListener('click', loadSampleData);
+
+        // Modal Handlers
+        openShopeeModalBtn.addEventListener('click', openShopeeModal);
+        heroShopeeBtn.addEventListener('click', openShopeeModal);
+        closeShopeeModalBtn.addEventListener('click', closeShopeeModal);
+        
+        tabApiBtn.addEventListener('click', () => {
+            tabApiBtn.classList.add('bg-white', 'shadow-xs', 'text-slate-900');
+            tabApiBtn.classList.remove('text-slate-500');
+            tabJsonBtn.classList.remove('bg-white', 'shadow-xs', 'text-slate-900');
+            tabJsonBtn.classList.add('text-slate-500');
+            shopeeApiForm.classList.remove('hidden');
+            shopeeJsonForm.classList.add('hidden');
+        });
+
+        tabJsonBtn.addEventListener('click', () => {
+            tabJsonBtn.classList.add('bg-white', 'shadow-xs', 'text-slate-900');
+            tabJsonBtn.classList.remove('text-slate-500');
+            tabApiBtn.classList.remove('bg-white', 'shadow-xs', 'text-slate-900');
+            tabApiBtn.classList.add('text-slate-500');
+            shopeeJsonForm.classList.remove('hidden');
+            shopeeApiForm.classList.add('hidden');
+        });
+
+        shopeeApiForm.addEventListener('submit', handleShopeeApiSync);
+        demoShopeeBtn.addEventListener('click', simulateShopeeSync);
+        importJsonBtn.addEventListener('click', handleShopeeJsonImport);
+
+        prevPageBtn.addEventListener('click', () => { if(currentPage > 1) { currentPage--; renderTablePage(); } });
+        nextPageBtn.addEventListener('click', () => { if(currentPage * pageSize < filteredDataStore.length) { currentPage++; renderTablePage(); } });
+
+        // Drag and Drop
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect({ target: fileInput });
+            }
+        });
+
+        if (chartLimitSelect) chartLimitSelect.addEventListener('change', () => renderCharts(getFilteredDataForCharts()));
+        if (chartSortSelect) chartSortSelect.addEventListener('change', () => renderCharts(getFilteredDataForCharts()));
+
+        function openShopeeModal() {
+            shopeeModal.classList.remove('opacity-0', 'pointer-events-none');
+            shopeeModal.children[0].classList.remove('scale-95');
+            shopeeModal.children[0].classList.add('scale-100');
+        }
+
+        function closeShopeeModal() {
+            shopeeModal.classList.add('opacity-0', 'pointer-events-none');
+            shopeeModal.children[0].classList.remove('scale-100');
+            shopeeModal.children[0].classList.add('scale-95');
+        }
+
+        // HMAC-SHA256 para Assinatura de Requisições Shopee Open API
+        async function calculateShopeeHMAC(secret, message) {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(secret);
+            const msgData = encoder.encode(message);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+            );
+            const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
+            
+            return Array.from(new Uint8Array(signatureBuffer))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        async function handleShopeeApiSync(e) {
+            e.preventDefault();
+            const appId = document.getElementById('shopee-app-id').value.trim();
+            const appSecret = document.getElementById('shopee-app-secret').value.trim();
+            const endpoint = document.getElementById('shopee-region').value;
+            const days = parseInt(document.getElementById('shopee-date-range').value, 10);
+            const saveCreds = document.getElementById('save-credentials').checked;
+
+            if (!appId || !appSecret) {
+                showNotification("Preencha o App ID e o App Secret da Shopee.", "error");
+                return;
+            }
+
+            if (saveCreds) {
+                localStorage.setItem('shopee_app_id', appId);
+                localStorage.setItem('shopee_region', endpoint);
+            } else {
+                localStorage.removeItem('shopee_app_id');
+                localStorage.removeItem('shopee_region');
+            }
+
+            // Spinner State
+            syncBtnSpinner.classList.remove('hidden');
+            syncBtnText.textContent = "Conectando à Shopee...";
+            syncShopeeBtn.disabled = true;
+
+            const now = Math.floor(Date.now() / 1000);
+            const startTime = now - (days * 86400);
+
+            // Consulta GraphQL da API de Afiliados Shopee
+            const graphqlQuery = {
+                query: `
+                    query {
+                        conversionReport(
+                            purchaseTimeStart: ${startTime},
+                            purchaseTimeEnd: ${now},
+                            limit: 300
+                        ) {
+                            nodes {
+                                orderId
+                                purchaseTime
+                                clickTime
+                                subId
+                                channel
+                                itemQty
+                                totalCommission
+                                orderStatus
+                            }
+                        }
+                    }
+                `
+            };
+
+            const payloadStr = JSON.stringify(graphqlQuery);
+
+            try {
+                const signature = await calculateShopeeHMAC(appSecret, `${appId}${now}${payloadStr}`);
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `SHA256 Credential=${appId}, Signature=${signature}, Timestamp=${now}` },
+                    body: payloadStr
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erro na API (${response.status})`);
+                }
+
+                const result = await response.json();
+
+                if (result.errors) {
+                    throw new Error(result.errors[0]?.message || 'Erro GraphQL na API Shopee');
+                }
+
+                const nodes = result.data?.conversionReport?.nodes || [];
+                if (nodes.length === 0) {
+                    showNotification("A API respondeu com sucesso, mas nenhum pedido foi encontrado no período.", "info");
+                } else {
+                    showNotification(`API Shopee Conectada: ${nodes.length} conversões obtidas!`, "success");
+                }
+
+                parseShopeeNodesToDataStore(nodes, "Shopee API Conectada");
+                closeShopeeModal();
+
+            } catch (err) {
+                console.warn("Shopee Direct Sync Warning:", err);
+                showNotification("Aviso CORS ou Autenticação na API Shopee. Tente 'Simular Sincronização' ou use a aba 'Importar JSON'.", "error");
+            } finally {
+                syncBtnSpinner.classList.add('hidden');
+                syncBtnText.textContent = "Sincronizar Vendas Shopee";
+                syncShopeeBtn.disabled = false;
+            }
+        }
+
+        function parseShopeeNodesToDataStore(nodes, sourceTitle) {
+            fileNameElement.textContent = `Fonte: ${sourceTitle} (${nodes.length} vendas)`;
+            
+            const mapStatus = (st) => {
+                const statusUpper = String(st || '').toUpperCase();
+                if (statusUpper.includes('CANCEL') || statusUpper.includes('REFUND') || statusUpper.includes('INVALID')) return 'Cancelado';
+                if (statusUpper.includes('PENDING')) return 'Pendente';
+                return 'Concluído';
+            };
+
+            const rawData = nodes.map(node => {
+                const formatShopeeDate = (ts) => {
+                    if (!ts) return 'N/A';
+                    const date = typeof ts === 'number' ? new Date(ts * (ts < 10000000000 ? 1000 : 1)) : new Date(ts);
+                    return isNaN(date.getTime()) ? 'N/A' : date.toISOString().slice(0, 16).replace('T', ' ');
+                };
+
+                return {
+                    'ID do pedido': node.orderId || node.order_id || 'N/A',
+                    'Horário do pedido': formatShopeeDate(node.purchaseTime || node.purchase_time),
+                    'Tempo dos Cliques': formatShopeeDate(node.clickTime || node.click_time),
+                    'Sub_id1': node.subId || node.sub_id || node.utmCampaign || node.subId1 || 'Geral_Shopee',
+                    'Canal': node.channel || node.mediaChannel || 'Shopee App',
+                    'Qtd': Number(node.itemQty || node.quantity || node.item_qty || 1),
+                    'Comissão líquida do afiliado(R$)': Number(node.totalCommission || node.commission || node.itemTotalCommission || 0),
+                    'Status do Pedido': mapStatus(node.orderStatus || node.order_status)
+                };
+            });
+
+            processData(rawData, "API Shopee Conectada");
+        }
+
+        function simulateShopeeSync() {
+            closeShopeeModal();
+            showNotification("Sincronizando dados demonstrativos da API Shopee...", "success");
+
+            const sampleShopeeNodes = [
+                { orderId: '260813A1099', purchaseTime: 1723551000, clickTime: 1723548000, subId: 'shopee_insta_bio', channel: 'Instagram', itemQty: 4, totalCommission: 188.40, orderStatus: 'COMPLETED' },
+                { orderId: '260813B2180', purchaseTime: 1723554000, clickTime: 1723550000, subId: 'shopee_telegram_achados', channel: 'Telegram', itemQty: 9, totalCommission: 382.10, orderStatus: 'COMPLETED' },
+                { orderId: '260813C3411', purchaseTime: 1723560000, clickTime: 1723557000, subId: 'tiktok_viral_review', channel: 'TikTok', itemQty: 14, totalCommission: 610.00, orderStatus: 'COMPLETED' },
+                { orderId: '260813D4002', purchaseTime: 1723565000, clickTime: 1723561000, subId: 'shopee_telegram_achados', channel: 'Telegram', itemQty: 3, totalCommission: 112.50, orderStatus: 'COMPLETED' },
+                { orderId: '260813E5519', purchaseTime: 1723572000, clickTime: 1723568000, subId: 'blog_artigo_cupom', channel: 'Google SEO', itemQty: 2, totalCommission: 76.00, orderStatus: 'CANCELLED' },
+                { orderId: '260813F6120', purchaseTime: 1723580000, clickTime: 1723575000, subId: 'youtube_video_top10', channel: 'YouTube', itemQty: 6, totalCommission: 295.30, orderStatus: 'COMPLETED' },
+                { orderId: '260813G7901', purchaseTime: 1723588000, clickTime: 1723582000, subId: 'tiktok_viral_review', channel: 'TikTok', itemQty: 8, totalCommission: 340.00, orderStatus: 'COMPLETED' },
+                { orderId: '260813H8200', purchaseTime: 1723592000, clickTime: 1723589000, subId: 'shopee_insta_bio', channel: 'Instagram', itemQty: 5, totalCommission: 215.00, orderStatus: 'COMPLETED' },
+                { orderId: '260813I9400', purchaseTime: 1723599000, clickTime: 1723594000, subId: 'whatsapp_grupo_ofertas', channel: 'WhatsApp', itemQty: 11, totalCommission: 489.90, orderStatus: 'COMPLETED' },
+            ];
+
+            setTimeout(() => {
+                parseShopeeNodesToDataStore(sampleShopeeNodes, "Sincronização Shopee API (Modo Teste)");
+            }, 300);
+        }
+
+        function handleShopeeJsonImport() {
+            const jsonText = shopeeJsonInput.value.trim();
+            if (!jsonText) {
+                showNotification("Cole a resposta JSON da API Shopee antes de importar.", "error");
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(jsonText);
+                let nodes = [];
+                if (Array.isArray(parsed)) nodes = parsed;
+                else if (parsed.data?.conversionReport?.nodes) nodes = parsed.data.conversionReport.nodes;
+                else if (parsed.nodes) nodes = parsed.nodes;
+
+                if (nodes.length === 0) {
+                    showNotification("Nenhum nó de conversão encontrado no JSON colado.", "error");
+                    return;
+                }
+
+                parseShopeeNodesToDataStore(nodes, "JSON Shopee Importado");
+                closeShopeeModal();
+                showNotification(`${nodes.length} conversões Shopee importadas com sucesso!`, "success");
+
+            } catch (e) {
+                showNotification("Formato JSON inválido. Verifique o texto colado.", "error");
+            }
+        }
+
+        function showNotification(msg, type = "info") {
+            const toast = document.getElementById('toast-notification');
+            const msgEl = document.getElementById('toast-message');
+            const toastContainer = document.getElementById('toast-container');
+            const toastIcon = document.getElementById('toast-icon');
+
+            msgEl.textContent = msg;
+
+            if (type === "error") {
+                toastContainer.className = "bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center space-x-3 border border-red-500/50";
+                toastIcon.className = "w-8 h-8 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0";
+            } else if (type === "success") {
+                toastContainer.className = "bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center space-x-3 border border-emerald-500/50";
+                toastIcon.className = "w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0";
+            } else {
+                toastContainer.className = "bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center space-x-3 border border-orange-500/50";
+                toastIcon.className = "w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0";
+            }
+
+            toast.classList.remove('translate-y-[-150%]', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-[-150%]', 'opacity-0');
+            }, 4500);
+        }
 
         function toggleTableVisibility() {
             tableWrapper.classList.toggle('hidden');
+            document.getElementById('pagination-controls').classList.toggle('hidden');
             toggleTableBtn.textContent = tableWrapper.classList.contains('hidden') ? 'Mostrar Tabela' : 'Ocultar Tabela';
         }
 
         function toggleChartsVisibility() {
             chartsWrapper.classList.toggle('hidden');
-            toggleChartsBtn.textContent = chartsWrapper.classList.contains('hidden') ? 'Mostrar Gráficos' : 'Ocultar Gráficos';
+            toggleChartsBtn.textContent = chartsWrapper.classList.contains('hidden') ? 'Mostrar Gráfico' : 'Ocultar Gráfico';
         }
 
         function toggleOrderIdVisibility() {
             const columns = document.querySelectorAll('.order-id-col');
-            let isHidden;
+            let isHidden = false;
             columns.forEach(col => {
                 col.classList.toggle('hidden');
                 isHidden = col.classList.contains('hidden');
             });
             toggleOrderIdBtn.textContent = isHidden ? 'Mostrar ID' : 'Ocultar ID';
         }
-        
+
+        function getFilteredDataForCharts() {
+            const searchTerm = subIdFilterInput.value.trim().toLowerCase();
+            if (searchTerm) {
+                return commissionDataStore.filter(item => String(item.subId).toLowerCase().includes(searchTerm));
+            }
+            return commissionDataStore;
+        }
+
         function applyFilter() {
-            const searchTerm = subIdFilterInput.value.toLowerCase();
-            const filteredData = commissionDataStore.filter(item => 
-                item.subId.toLowerCase().includes(searchTerm)
+            const searchTerm = subIdFilterInput.value.trim().toLowerCase();
+            filteredDataStore = commissionDataStore.filter(item => 
+                String(item.subId).toLowerCase().includes(searchTerm)
             );
-            updateDisplay(filteredData);
+            currentPage = 1;
+            updateDisplay(filteredDataStore);
         }
 
         function clearFilter() {
             subIdFilterInput.value = '';
+            filteredDataStore = [...commissionDataStore];
+            currentPage = 1;
             updateDisplay(commissionDataStore);
         }
-        
+
         function populateFilterOptions(data) {
-            const uniqueSubIds = [...new Set(data.map(item => item.subId).filter(id => id !== 'N/A'))];
+            const uniqueSubIds = [...new Set(data.map(item => item.subId).filter(id => id && id !== 'N/A'))];
             subIdOptions.innerHTML = '';
             uniqueSubIds.forEach(id => {
                 const option = document.createElement('option');
@@ -232,69 +922,90 @@
 
         function handleFileSelect(event) {
             const file = event.target.files[0];
-            if (!file) {
-                fileNameElement.textContent = 'Nenhum arquivo selecionado';
-                return;
-            }
-            fileNameElement.textContent = `Arquivo selecionado: ${file.name}`;
-            
+            if (!file) return;
+            fileNameElement.textContent = `CSV: ${file.name}`;
+
             Papa.parse(file, {
                 header: true,
                 dynamicTyping: true,
                 skipEmptyLines: true,
                 complete: (results) => {
-                    if (results.errors.length > 0) {
-                        alert("Ocorreu um erro ao ler o arquivo CSV. Verifique o formato.");
-                        console.error("Erros de parsing:", results.errors);
-                        return;
+                    if (results.errors && results.errors.length > 0) {
+                        showNotification("Aviso: Formato CSV adaptado automaticamente.");
                     }
-                    processData(results.data);
+                    processData(results.data, "Arquivo CSV Uploaded");
                 },
                 error: (error) => {
-                    alert("Não foi possível ler o arquivo.");
-                    console.error("Erro no PapaParse:", error);
+                    showNotification("Erro ao ler o arquivo CSV.", "error");
                 }
             });
         }
 
-        function processData(data) {
-            if (data.length > 0 && (!data[0].hasOwnProperty('ID do pedido') || !data[0].hasOwnProperty('Comissão líquida do afiliado(R$)') || !data[0].hasOwnProperty('Qtd') || !data[0].hasOwnProperty('Canal') || !data[0].hasOwnProperty('Horário do pedido') || !data[0].hasOwnProperty('Tempo dos Cliques') || !data[0].hasOwnProperty('Status do Pedido'))) {
-                alert('O arquivo CSV não contém as colunas necessárias, incluindo "Status do Pedido".');
+        function loadSampleData() {
+            fileNameElement.textContent = "Dataset Exemplo Geral (Demonstração)";
+            const sampleData = [
+                { 'ID do pedido': 'ORD-9821', 'Horário do pedido': '2026-08-01 10:15', 'Tempo dos Cliques': '2026-08-01 09:30', 'Sub_id1': 'campanha_instagram_bio', 'Canal': 'Instagram', 'Qtd': 3, 'Comissão líquida do afiliado(R$)': 145.50, 'Status do Pedido': 'Concluído' },
+                { 'ID do pedido': 'ORD-9822', 'Horário do pedido': '2026-08-01 11:20', 'Tempo dos Cliques': '2026-08-01 10:05', 'Sub_id1': 'campanha_youtube_review', 'Canal': 'YouTube', 'Qtd': 5, 'Comissão líquida do afiliado(R$)': 280.00, 'Status do Pedido': 'Concluído' },
+                { 'ID do pedido': 'ORD-9823', 'Horário do pedido': '2026-08-02 14:02', 'Tempo dos Cliques': '2026-08-02 12:40', 'Sub_id1': 'telegram_grupo_vip', 'Canal': 'Telegram', 'Qtd': 8, 'Comissão líquida do afiliado(R$)': 410.20, 'Status do Pedido': 'Concluído' },
+                { 'ID do pedido': 'ORD-9824', 'Horário do pedido': '2026-08-02 16:45', 'Tempo dos Cliques': '2026-08-02 15:10', 'Sub_id1': 'blog_artigo_review', 'Canal': 'Blog Organic', 'Qtd': 1, 'Comissão líquida do afiliado(R$)': 42.00, 'Status do Pedido': 'Concluído' },
+                { 'ID do pedido': 'ORD-9825', 'Horário do pedido': '2026-08-03 09:11', 'Tempo dos Cliques': '2026-08-03 08:30', 'Sub_id1': 'campanha_instagram_bio', 'Canal': 'Instagram', 'Qtd': 2, 'Comissão líquida do afiliado(R$)': 98.00, 'Status do Pedido': 'Concluído' },
+                { 'ID do pedido': 'ORD-9826', 'Horário do pedido': '2026-08-03 18:30', 'Tempo dos Cliques': '2026-08-03 18:00', 'Sub_id1': 'telegram_grupo_vip', 'Canal': 'Telegram', 'Qtd': 4, 'Comissão líquida do afiliado(R$)': 195.00, 'Status do Pedido': 'Cancelado' },
+                { 'ID do pedido': 'ORD-9827', 'Horário do pedido': '2026-08-04 20:10', 'Tempo dos Cliques': '2026-08-04 19:15', 'Sub_id1': 'newsletter_semanal', 'Canal': 'Email', 'Qtd': 6, 'Comissão líquida do afiliado(R$)': 310.80, 'Status do Pedido': 'Concluído' },
+                { 'ID do pedido': 'ORD-9828', 'Horário do pedido': '2026-08-05 12:00', 'Tempo dos Cliques': '2026-08-05 11:22', 'Sub_id1': 'campanha_tiktok_ads', 'Canal': 'TikTok', 'Qtd': 12, 'Comissão líquida do afiliado(R$)': 540.00, 'Status do Pedido': 'Concluído' },
+            ];
+            processData(sampleData, "Exemplo Carregado");
+        }
+
+        function processData(data, badgeText = "Dados Carregados") {
+            if (!data || data.length === 0) {
+                showNotification('Nenhum registro encontrado para exibição.', "error");
                 return;
             }
 
-            commissionDataStore = data.map(item => ({
-                orderId: item['ID do pedido'],
-                orderDate: item['Horário do pedido'] || 'N/A',
-                clickDate: item['Tempo dos Cliques'] || 'N/A',
-                subId: item['Sub_id1'] || 'N/A',
-                channel: item['Canal'] || 'N/A',
-                quantity: item['Qtd'] || 0,
-                commission: item['Comissão líquida do afiliado(R$)'] || 0,
-                orderStatus: item['Status do Pedido'] || 'N/A'
-            }));
+            commissionDataStore = data.map(item => {
+                const orderId = item['ID do pedido'] || item['ID do Pedido'] || item['Order ID'] || item['orderId'] || 'N/A';
+                const orderDate = item['Horário do pedido'] || item['Data do pedido'] || item['Order Date'] || item['purchaseTime'] || 'N/A';
+                const clickDate = item['Tempo dos Cliques'] || item['Data do clique'] || item['Click Date'] || item['clickTime'] || 'N/A';
+                const subId = item['Sub_id1'] || item['Sub ID'] || item['SubID'] || item['subId'] || 'Geral';
+                const channel = item['Canal'] || item['Channel'] || item['channel'] || 'Geral';
+                const quantity = Number(item['Qtd'] || item['Quantidade'] || item['Quantity'] || item['itemQty']) || 0;
+                
+                let rawComm = item['Comissão líquida do afiliado(R$)'] || item['Comissão'] || item['Commission'] || item['totalCommission'] || 0;
+                if (typeof rawComm === 'string') {
+                    rawComm = parseFloat(rawComm.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+                }
+                const commission = Number(rawComm) || 0;
+                const orderStatus = item['Status do Pedido'] || item['Status'] || item['orderStatus'] || 'Concluído';
 
-            const orderDates = commissionDataStore
+                return { orderId, orderDate, clickDate, subId, channel, quantity, commission, orderStatus };
+            });
+
+            filteredDataStore = [...commissionDataStore];
+
+            // Intervalo de Datas
+            const dates = commissionDataStore
                 .map(item => new Date(item.orderDate))
-                .filter(date => !isNaN(date.getTime()));
+                .filter(d => !isNaN(d.getTime()));
 
-            if (orderDates.length > 0) {
-                const minDate = new Date(Math.min.apply(null, orderDates));
-                const maxDate = new Date(Math.max.apply(null, orderDates));
-                const formatDateForTitle = (date) => date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const formattedMinDate = formatDateForTitle(minDate);
-                const formattedMaxDate = formatDateForTitle(maxDate);
-                reportDateElement.textContent = formattedMinDate === formattedMaxDate ? `Período do Relatório: ${formattedMinDate}` : `Período do Relatório: ${formattedMinDate} a ${formattedMaxDate}`;
+            if (dates.length > 0) {
+                const minD = new Date(Math.min.apply(null, dates));
+                const maxD = new Date(Math.max.apply(null, dates));
+                const fmt = (d) => d.toLocaleDateString('pt-BR');
+                reportDateElement.textContent = fmt(minD) === fmt(maxD) ? `Data: ${fmt(minD)}` : `Período: ${fmt(minD)} a ${fmt(maxD)}`;
+                periodBanner.classList.remove('hidden');
             } else {
-                reportDateElement.textContent = 'Período não identificado';
+                periodBanner.classList.add('hidden');
             }
 
             tablePlaceholder.classList.add('hidden');
             totalsSection.classList.remove('hidden');
             tableSection.classList.remove('hidden');
             chartsSection.classList.remove('hidden');
+            statusBadge.classList.remove('hidden');
+            if (statusBadgeText) statusBadgeText.textContent = badgeText;
 
             populateFilterOptions(commissionDataStore);
+            currentPage = 1;
             updateDisplay(commissionDataStore);
         }
 
@@ -306,19 +1017,13 @@
                 sortState.direction = 'desc';
             }
 
-            const searchTerm = subIdFilterInput.value.toLowerCase();
-            let dataToSort = [...commissionDataStore];
-            if (searchTerm) {
-                dataToSort = dataToSort.filter(item => item.subId.toLowerCase().includes(searchTerm));
-            }
-
-            dataToSort.sort((a, b) => {
+            filteredDataStore.sort((a, b) => {
                 const valA = a[column];
                 const valB = b[column];
                 return sortState.direction === 'asc' ? valA - valB : valB - valA;
             });
 
-            populateTable(dataToSort);
+            renderTablePage();
             updateSortIcons();
         }
 
@@ -335,50 +1040,74 @@
             if (!dateString || dateString === 'N/A') return 'N/A';
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return dateString;
-            const options = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' };
-            return date.toLocaleString('pt-BR', options);
-        }
-        
-        function updateDisplay(data) {
-            populateTable(data);
-            calculateTotals(data);
-            renderCharts(data);
+            return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
 
-        function populateTable(data) {
-            tableBody.innerHTML = ''; 
+        function updateDisplay(data) {
+            calculateTotals(data);
+            renderCharts(data);
+            renderTablePage();
+            if (recordCountElement) {
+                recordCountElement.textContent = `${data.length} pedidos`;
+            }
+        }
+
+        function renderTablePage() {
+            tableBody.innerHTML = '';
             const isOrderIdHidden = document.querySelector('th.order-id-col').classList.contains('hidden');
-            
-            data.forEach(item => {
+
+            const startIdx = (currentPage - 1) * pageSize;
+            const endIdx = startIdx + pageSize;
+            const pageData = filteredDataStore.slice(startIdx, endIdx);
+
+            if (filteredDataStore.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 font-medium">Nenhum pedido encontrado.</td></tr>`;
+                paginationInfo.textContent = '0 registros';
+                prevPageBtn.disabled = true;
+                nextPageBtn.disabled = true;
+                return;
+            }
+
+            pageData.forEach(item => {
                 const row = document.createElement('tr');
                 const formattedCommission = Number(item.commission).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.className = 'border-b border-gray-200 hover:bg-gray-100';
+                const isCancelled = String(item.orderStatus).toLowerCase().includes('cancel');
+
+                row.className = 'hover:bg-slate-50/80 transition-colors';
                 row.innerHTML = `
-                    <td class="order-id-col py-3 px-4 ${isOrderIdHidden ? 'hidden' : ''}">${item.orderId}</td>
-                    <td class="py-3 px-4 whitespace-nowrap">${formatDate(item.clickDate)}</td>
-                    <td class="py-3 px-4 whitespace-nowrap">${formatDate(item.orderDate)}</td>
-                    <td class="py-3 px-4">${item.subId}</td>
-                    <td class="py-3 px-4">${item.channel}</td>
-                    <td class="py-3 px-4 text-center">${item.quantity}</td>
-                    <td class="py-3 px-4 text-right font-medium">${formattedCommission}</td>
+                    <td class="order-id-col py-3.5 px-5 ${isOrderIdHidden ? 'hidden' : ''} font-mono text-[11px] text-slate-500">${item.orderId}</td>
+                    <td class="py-3.5 px-5 whitespace-nowrap text-slate-500 text-[11px]">${formatDate(item.clickDate)}</td>
+                    <td class="py-3.5 px-5 whitespace-nowrap font-medium text-slate-800 text-xs">${formatDate(item.orderDate)}</td>
+                    <td class="py-3.5 px-5 font-bold text-slate-900">${item.subId}</td>
+                    <td class="py-3.5 px-5"><span class="bg-slate-100 text-slate-700 text-[11px] px-2.5 py-1 rounded-lg font-semibold border border-slate-200">${item.channel}</span></td>
+                    <td class="py-3.5 px-5 text-center font-extrabold text-slate-800">${item.quantity}</td>
+                    <td class="py-3.5 px-5 text-right font-extrabold ${isCancelled ? 'text-red-500 line-through' : 'text-emerald-600'}">${formattedCommission}</td>
                 `;
                 tableBody.appendChild(row);
             });
+
+            paginationInfo.textContent = `Página ${currentPage} de ${Math.ceil(filteredDataStore.length / pageSize)} (${filteredDataStore.length} totais)`;
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = endIdx >= filteredDataStore.length;
         }
 
         function calculateTotals(data) {
             const totalCommission = data.reduce((sum, item) => sum + Number(item.commission), 0);
             const totalQuantity = data.reduce((sum, item) => sum + Number(item.quantity), 0);
             const totalOrders = new Set(data.map(item => item.orderId)).size;
-            const cancelledOrders = data.filter(item => item.orderStatus === 'Cancelado').length;
-            
-            totalValueElement.textContent = totalCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            totalQuantityElement.textContent = totalQuantity;
-            totalOrdersElement.textContent = totalOrders;
-            cancelledOrdersElement.textContent = cancelledOrders;
+            const cancelledOrders = data.filter(item => String(item.orderStatus).toLowerCase().includes('cancel')).length;
 
+            totalValueElement.textContent = totalCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            totalQuantityElement.textContent = totalQuantity.toLocaleString('pt-BR');
+            totalOrdersElement.textContent = totalOrders.toLocaleString('pt-BR');
+            cancelledOrdersElement.textContent = cancelledOrders.toLocaleString('pt-BR');
+
+            const avgComm = totalOrders > 0 ? (totalCommission / totalOrders) : 0;
+            avgCommissionLabel.textContent = `Média/pedido: ${avgComm.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+
+            // Métricas de Canais
             const channelMetrics = data.reduce((acc, item) => {
-                const channel = item.channel || 'N/A';
+                const channel = item.channel || 'Geral';
                 const quantity = Number(item.quantity) || 0;
                 if (!acc[channel]) {
                     acc[channel] = { quantity: 0, orderIds: new Set() };
@@ -389,31 +1118,23 @@
             }, {});
 
             channelTotalsElement.innerHTML = '';
-            if (Object.keys(channelMetrics).length > 0) {
-                for (const channel in channelMetrics) {
-                    const metrics = {
-                        quantity: channelMetrics[channel].quantity,
-                        orders: channelMetrics[channel].orderIds.size
-                    };
-                    const li = document.createElement('li');
-                    li.className = 'flex justify-between items-center bg-white p-2 rounded-md shadow-sm';
-                    li.innerHTML = `
-                        <span>${channel}</span>
-                        <div class="flex items-center space-x-4">
-                             <span class="font-semibold text-gray-600">Pedidos: <span class="font-bold bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">${metrics.orders}</span></span>
-                             <span class="font-semibold text-gray-600">Produtos: <span class="font-bold bg-gray-200 text-gray-800 text-sm px-2 py-1 rounded-full">${metrics.quantity}</span></span>
-                        </div>
-                    `;
-                    channelTotalsElement.appendChild(li);
-                }
-            } else {
-                channelTotalsElement.innerHTML = '<li>Nenhum dado de canal disponível.</li>';
+            for (const channel in channelMetrics) {
+                const li = document.createElement('li');
+                li.className = 'flex items-center justify-between bg-white/90 p-3 rounded-2xl border border-slate-200/80 shadow-xs';
+                li.innerHTML = `
+                    <span class="font-bold text-slate-800 truncate">${channel}</span>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="text-slate-500 font-medium">Ped: <strong class="text-shopee-600 bg-orange-50 px-2 py-0.5 rounded-md">${channelMetrics[channel].orderIds.size}</strong></span>
+                        <span class="text-slate-500 font-medium">Un: <strong class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">${channelMetrics[channel].quantity}</strong></span>
+                    </div>
+                `;
+                channelTotalsElement.appendChild(li);
             }
         }
 
         function renderCharts(data) {
             const subIdMetrics = data.reduce((acc, item) => {
-                const subId = item.subId || 'N/A';
+                const subId = item.subId || 'Geral';
                 const commission = Number(item.commission) || 0;
                 const quantity = Number(item.quantity) || 0;
                 if (!acc[subId]) {
@@ -424,70 +1145,54 @@
                 return acc;
             }, {});
 
-            const labels = Object.keys(subIdMetrics);
-            const commissionValues = labels.map(label => subIdMetrics[label].commission);
-            const quantityValues = labels.map(label => subIdMetrics[label].quantity);
+            let subIdEntries = Object.entries(subIdMetrics);
+            const totalItemsCount = subIdEntries.length;
 
-            if (pieChartInstance) pieChartInstance.destroy();
+            const sortMode = chartSortSelect ? chartSortSelect.value : 'commission-desc';
+            if (sortMode === 'commission-desc') {
+                subIdEntries.sort(([, a], [, b]) => b.commission - a.commission);
+            } else if (sortMode === 'quantity-desc') {
+                subIdEntries.sort(([, a], [, b]) => b.quantity - a.quantity);
+            } else if (sortMode === 'name-asc') {
+                subIdEntries.sort(([a], [b]) => a.localeCompare(b));
+            }
+
+            const limitMode = chartLimitSelect ? chartLimitSelect.value : '10';
+            let displayEntries = subIdEntries;
+            if (limitMode !== 'all') {
+                displayEntries = subIdEntries.slice(0, parseInt(limitMode, 10));
+            }
+
+            if (chartItemCountBadge) {
+                chartItemCountBadge.textContent = `Exibindo ${displayEntries.length} de ${totalItemsCount} Sub IDs`;
+            }
+
+            const labels = displayEntries.map(([subId]) => subId);
+            const commissionValues = displayEntries.map(([, metrics]) => metrics.commission);
+            const quantityValues = displayEntries.map(([, metrics]) => metrics.quantity);
+            const totalCommissionSum = Object.values(subIdMetrics).reduce((a, b) => a + b.commission, 0);
+
+            // Altura dinâmica para evitar barras espremidas
+            const barHeightPerItem = 48;
+            const calculatedHeight = Math.max(300, displayEntries.length * barHeightPerItem);
+            if (canvasDynamicContainer) {
+                canvasDynamicContainer.style.height = `${calculatedHeight}px`;
+            }
+
             if (barChartInstance) barChartInstance.destroy();
 
-            const backgroundColors = labels.map(() => `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.7)`);
-            
-            const pieCtx = document.getElementById('pie-chart').getContext('2d');
-            pieChartInstance = new Chart(pieCtx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Comissão (R$)',
-                        data: commissionValues,
-                        backgroundColor: backgroundColors,
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                generateLabels: function(chart) {
-                                    const data = chart.data;
-                                    if (data.labels.length && data.datasets.length) {
-                                        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                        return data.labels.map((label, i) => {
-                                            const meta = chart.getDatasetMeta(0);
-                                            const style = meta.controller.getStyle(i);
-                                            const value = data.datasets[0].data[i];
-                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) + '%' : '0.00%';
-                                            return { text: `${label}: ${percentage}`, fillStyle: style.backgroundColor, strokeStyle: style.borderColor, lineWidth: style.borderWidth, pointStyle: 'rect', hidden: !chart.getDataVisibility(i), index: i };
-                                        });
-                                    }
-                                    return [];
-                                }
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed !== null) {
-                                        const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                        const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(2) + '%' : '0.00%';
-                                        label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed) + ` (${percentage})`;
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
+            const isMobile = window.innerWidth < 640;
             const barCtx = document.getElementById('bar-chart').getContext('2d');
+
+            // Criar Gradientes em Laranja Shopee
+            const gradientOrange = barCtx.createLinearGradient(0, 0, 400, 0);
+            gradientOrange.addColorStop(0, 'rgba(238, 77, 45, 0.9)');
+            gradientOrange.addColorStop(1, 'rgba(251, 146, 60, 0.7)');
+
+            const gradientGreen = barCtx.createLinearGradient(0, 0, 400, 0);
+            gradientGreen.addColorStop(0, 'rgba(16, 185, 129, 0.9)');
+            gradientGreen.addColorStop(1, 'rgba(52, 211, 153, 0.7)');
+
             barChartInstance = new Chart(barCtx, {
                 type: 'bar',
                 data: {
@@ -496,97 +1201,126 @@
                         {
                             label: 'Comissão (R$)',
                             data: commissionValues,
-                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                            borderColor: 'rgba(59, 130, 246, 1)',
+                            backgroundColor: gradientOrange,
+                            borderColor: '#d73211',
                             borderWidth: 1,
-                            yAxisID: 'y'
+                            borderRadius: 8,
+                            xAxisID: 'x'
                         },
                         {
-                            label: 'Quantidade',
+                            label: 'Quantidade (un)',
                             data: quantityValues,
-                            backgroundColor: 'rgba(236, 72, 153, 0.7)',
-                            borderColor: 'rgba(236, 72, 153, 1)',
+                            backgroundColor: gradientGreen,
+                            borderColor: '#047857',
                             borderWidth: 1,
-                            yAxisID: 'y1'
+                            borderRadius: 8,
+                            xAxisID: 'x1'
                         }
                     ]
                 },
                 options: {
+                    indexAxis: 'y',
                     responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: isMobile ? 30 : 60 } },
                     scales: {
                         y: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Plus Jakarta Sans', size: isMobile ? 10 : 12, weight: '600' }, color: '#334155' }
+                        },
+                        x: {
                             type: 'linear',
                             display: true,
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: 'Comissão (R$)'
-                            },
+                            position: 'bottom',
+                            title: { display: !isMobile, text: 'Comissão (R$)', font: { weight: 'bold', size: 10 } },
                             ticks: {
-                                callback: function(value) {
-                                    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-                                }
+                                font: { family: 'Plus Jakarta Sans', size: 9 },
+                                callback: (v) => 'R$' + Math.round(v)
                             }
                         },
-                        y1: {
+                        x1: {
                             type: 'linear',
                             display: true,
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: 'Quantidade'
-                            },
-                            grid: {
-                                drawOnChartArea: false,
-                            },
+                            position: 'top',
+                            title: { display: !isMobile, text: 'Qtd (un)', font: { weight: 'bold', size: 10 } },
+                            grid: { drawOnChartArea: false },
+                            ticks: { precision: 0, font: { family: 'Plus Jakarta Sans', size: 9 } }
                         }
                     },
                     plugins: {
-                        legend: {
-                            position: 'top',
+                        legend: { position: 'top', labels: { font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' } } },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'end',
+                            color: '#1e293b',
+                            font: { size: 9, weight: 'bold' },
+                            formatter: (value, ctx) => {
+                                if (ctx.datasetIndex === 0) {
+                                    return value > 0 ? 'R$' + Math.round(value) : '';
+                                }
+                                return value > 0 ? value + 'un' : '';
+                            }
                         },
                         tooltip: {
-                           callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        if (context.dataset.yAxisID === 'y') {
-                                           label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
-                                        } else {
-                                            label += context.parsed.y;
-                                        }
-                                    }
-                                    return label;
+                            callbacks: {
+                                label: (context) => {
+                                    const val = context.parsed.x;
+                                    return context.datasetIndex === 0
+                                        ? ` Comissão: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)}`
+                                        : ` Quantidade: ${val} un.`;
                                 }
                             }
                         }
                     }
                 }
             });
-            
-            // Preencher legenda customizada
-            chartsLegend.innerHTML = '';
-            const sortedSubIds = Object.entries(subIdMetrics).sort(([,a], [,b]) => b.commission - a.commission);
 
-            if (sortedSubIds.length > 0) {
-                sortedSubIds.forEach(([subId, metrics]) => {
+            // Renderizar Cards de Sub ID na Legenda
+            chartsLegend.innerHTML = '';
+            if (displayEntries.length > 0) {
+                displayEntries.forEach(([subId, metrics]) => {
                     const formattedCommission = metrics.commission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const legendItem = document.createElement('div');
-                    legendItem.className = 'flex items-center bg-white p-2 rounded-md shadow-sm';
-                    legendItem.innerHTML = `
-                        <span class="font-semibold text-gray-700">${subId}:</span>
-                        <span class="ml-2 font-bold text-blue-600">${formattedCommission}</span>
+                    const pctVal = totalCommissionSum > 0 ? (metrics.commission / totalCommissionSum) * 100 : 0;
+                    const pctStr = pctVal.toFixed(1) + '%';
+
+                    const card = document.createElement('div');
+                    card.className = 'glass-card p-4 rounded-2xl border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition-all';
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <span class="font-bold text-slate-900 text-xs sm:text-sm truncate" title="${subId}">${subId}</span>
+                                <span class="text-[10px] bg-orange-50 text-shopee-600 font-extrabold px-2 py-0.5 rounded-full border border-orange-200">${pctStr}</span>
+                            </div>
+                            
+                            <!-- Barra de Progresso Visual de Representatividade -->
+                            <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mb-3">
+                                <div class="bg-shopee-500 h-full rounded-full" style="width: ${Math.min(100, pctVal)}%"></div>
+                            </div>
+
+                            <div class="space-y-1 text-xs">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-500 font-medium">Comissão:</span>
+                                    <span class="font-bold text-shopee-600">${formattedCommission}</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-500 font-medium">Produtos:</span>
+                                    <span class="font-bold text-emerald-600">${metrics.quantity} un.</span>
+                                </div>
+                            </div>
+                        </div>
                     `;
-                    chartsLegend.appendChild(legendItem);
+                    chartsLegend.appendChild(card);
                 });
             } else {
-                chartsLegend.innerHTML = '<p class="text-gray-500">Nenhum dado para exibir na legenda.</p>';
+                chartsLegend.innerHTML = '<p class="text-slate-400 text-center col-span-full text-xs py-4">Nenhum Sub ID para exibir.</p>';
             }
         }
-    </script>
 
+        window.addEventListener('resize', () => {
+            if (commissionDataStore.length > 0) {
+                renderCharts(getFilteredDataForCharts());
+            }
+        });
+    </script>
 </body>
 </html>

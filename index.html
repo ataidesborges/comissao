@@ -281,10 +281,10 @@
                         <div class="flex items-center gap-2">
                             <span class="font-bold text-slate-700">Quantidade Exibida:</span>
                             <select id="chart-limit-select" class="bg-white border border-slate-300 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-shopee-500 outline-none">
-                                <option value="10" selected>Top 10 Sub IDs</option>
+                                <option value="10">Top 10 Sub IDs</option>
                                 <option value="20">Top 20 Sub IDs</option>
                                 <option value="50">Top 50 Sub IDs</option>
-                                <option value="all">Mostrar Todos os Itens</option>
+                                <option value="all" selected>Mostrar Todos os Itens</option>
                             </select>
                         </div>
 
@@ -774,12 +774,22 @@
                     return isNaN(date.getTime()) ? 'N/A' : date.toISOString().slice(0, 16).replace('T', ' ');
                 };
 
+                const rawSubId = node.subId || node.sub_id || node.utmCampaign || node.subId1;
+                const subIdFormatted = (!rawSubId || String(rawSubId).trim().toLowerCase() === 'geral' || String(rawSubId).trim().toLowerCase() === 'geral_shopee') 
+                    ? 'Shopee Vídeos' 
+                    : rawSubId;
+
+                const rawChannel = node.channel || node.mediaChannel;
+                const channelFormatted = (!rawChannel || String(rawChannel).trim().toLowerCase() === 'geral') 
+                    ? 'Shopee Vídeos' 
+                    : rawChannel;
+
                 return {
                     'ID do pedido': node.orderId || node.order_id || 'N/A',
                     'Horário do pedido': formatShopeeDate(node.purchaseTime || node.purchase_time),
                     'Tempo dos Cliques': formatShopeeDate(node.clickTime || node.click_time),
-                    'Sub_id1': node.subId || node.sub_id || node.utmCampaign || node.subId1 || 'Geral_Shopee',
-                    'Canal': node.channel || node.mediaChannel || 'Shopee App',
+                    'Sub_id1': subIdFormatted,
+                    'Canal': channelFormatted,
                     'Qtd': Number(node.itemQty || node.quantity || node.item_qty || 1),
                     'Comissão líquida do afiliado(R$)': Number(node.totalCommission || node.commission || node.itemTotalCommission || 0),
                     'Status do Pedido': mapStatus(node.orderStatus || node.order_status)
@@ -942,15 +952,15 @@
         }
 
         function loadSampleData() {
-            fileNameElement.textContent = "Dataset Exemplo Geral (Demonstração)";
+            fileNameElement.textContent = "Dataset Exemplo Shopee (Demonstração)";
             const sampleData = [
                 { 'ID do pedido': 'ORD-9821', 'Horário do pedido': '2026-08-01 10:15', 'Tempo dos Cliques': '2026-08-01 09:30', 'Sub_id1': 'campanha_instagram_bio', 'Canal': 'Instagram', 'Qtd': 3, 'Comissão líquida do afiliado(R$)': 145.50, 'Status do Pedido': 'Concluído' },
-                { 'ID do pedido': 'ORD-9822', 'Horário do pedido': '2026-08-01 11:20', 'Tempo dos Cliques': '2026-08-01 10:05', 'Sub_id1': 'campanha_youtube_review', 'Canal': 'YouTube', 'Qtd': 5, 'Comissão líquida do afiliado(R$)': 280.00, 'Status do Pedido': 'Concluído' },
+                { 'ID do pedido': 'ORD-9822', 'Horário do pedido': '2026-08-01 11:20', 'Tempo dos Cliques': '2026-08-01 10:05', 'Sub_id1': 'Shopee Vídeos', 'Canal': 'Shopee Vídeos', 'Qtd': 5, 'Comissão líquida do afiliado(R$)': 280.00, 'Status do Pedido': 'Concluído' },
                 { 'ID do pedido': 'ORD-9823', 'Horário do pedido': '2026-08-02 14:02', 'Tempo dos Cliques': '2026-08-02 12:40', 'Sub_id1': 'telegram_grupo_vip', 'Canal': 'Telegram', 'Qtd': 8, 'Comissão líquida do afiliado(R$)': 410.20, 'Status do Pedido': 'Concluído' },
-                { 'ID do pedido': 'ORD-9824', 'Horário do pedido': '2026-08-02 16:45', 'Tempo dos Cliques': '2026-08-02 15:10', 'Sub_id1': 'blog_artigo_review', 'Canal': 'Blog Organic', 'Qtd': 1, 'Comissão líquida do afiliado(R$)': 42.00, 'Status do Pedido': 'Concluído' },
+                { 'ID do pedido': 'ORD-9824', 'Horário do pedido': '2026-08-02 16:45', 'Tempo dos Cliques': '2026-08-02 15:10', 'Sub_id1': 'Shopee Vídeos', 'Canal': 'Shopee Vídeos', 'Qtd': 3, 'Comissão líquida do afiliado(R$)': 142.00, 'Status do Pedido': 'Concluído' },
                 { 'ID do pedido': 'ORD-9825', 'Horário do pedido': '2026-08-03 09:11', 'Tempo dos Cliques': '2026-08-03 08:30', 'Sub_id1': 'campanha_instagram_bio', 'Canal': 'Instagram', 'Qtd': 2, 'Comissão líquida do afiliado(R$)': 98.00, 'Status do Pedido': 'Concluído' },
                 { 'ID do pedido': 'ORD-9826', 'Horário do pedido': '2026-08-03 18:30', 'Tempo dos Cliques': '2026-08-03 18:00', 'Sub_id1': 'telegram_grupo_vip', 'Canal': 'Telegram', 'Qtd': 4, 'Comissão líquida do afiliado(R$)': 195.00, 'Status do Pedido': 'Cancelado' },
-                { 'ID do pedido': 'ORD-9827', 'Horário do pedido': '2026-08-04 20:10', 'Tempo dos Cliques': '2026-08-04 19:15', 'Sub_id1': 'newsletter_semanal', 'Canal': 'Email', 'Qtd': 6, 'Comissão líquida do afiliado(R$)': 310.80, 'Status do Pedido': 'Concluído' },
+                { 'ID do pedido': 'ORD-9827', 'Horário do pedido': '2026-08-04 20:10', 'Tempo dos Cliques': '2026-08-04 19:15', 'Sub_id1': 'Shopee Vídeos', 'Canal': 'Shopee Vídeos', 'Qtd': 6, 'Comissão líquida do afiliado(R$)': 310.80, 'Status do Pedido': 'Concluído' },
                 { 'ID do pedido': 'ORD-9828', 'Horário do pedido': '2026-08-05 12:00', 'Tempo dos Cliques': '2026-08-05 11:22', 'Sub_id1': 'campanha_tiktok_ads', 'Canal': 'TikTok', 'Qtd': 12, 'Comissão líquida do afiliado(R$)': 540.00, 'Status do Pedido': 'Concluído' },
             ];
             processData(sampleData, "Exemplo Carregado");
@@ -966,8 +976,17 @@
                 const orderId = item['ID do pedido'] || item['ID do Pedido'] || item['Order ID'] || item['orderId'] || 'N/A';
                 const orderDate = item['Horário do pedido'] || item['Data do pedido'] || item['Order Date'] || item['purchaseTime'] || 'N/A';
                 const clickDate = item['Tempo dos Cliques'] || item['Data do clique'] || item['Click Date'] || item['clickTime'] || 'N/A';
-                const subId = item['Sub_id1'] || item['Sub ID'] || item['SubID'] || item['subId'] || 'Geral';
-                const channel = item['Canal'] || item['Channel'] || item['channel'] || 'Geral';
+                
+                let subId = item['Sub_id1'] || item['Sub ID'] || item['SubID'] || item['subId'] || 'Shopee Vídeos';
+                if (!subId || String(subId).trim().toLowerCase() === 'geral' || String(subId).trim().toLowerCase() === 'geral_shopee') {
+                    subId = 'Shopee Vídeos';
+                }
+
+                let channel = item['Canal'] || item['Channel'] || item['channel'] || 'Shopee Vídeos';
+                if (!channel || String(channel).trim().toLowerCase() === 'geral') {
+                    channel = 'Shopee Vídeos';
+                }
+
                 const quantity = Number(item['Qtd'] || item['Quantidade'] || item['Quantity'] || item['itemQty']) || 0;
                 
                 let rawComm = item['Comissão líquida do afiliado(R$)'] || item['Comissão'] || item['Commission'] || item['totalCommission'] || 0;
@@ -1107,7 +1126,9 @@
 
             // Métricas de Canais
             const channelMetrics = data.reduce((acc, item) => {
-                const channel = item.channel || 'Geral';
+                let channel = item.channel || 'Shopee Vídeos';
+                if (String(channel).trim().toLowerCase() === 'geral') channel = 'Shopee Vídeos';
+
                 const quantity = Number(item.quantity) || 0;
                 if (!acc[channel]) {
                     acc[channel] = { quantity: 0, orderIds: new Set() };
@@ -1134,7 +1155,9 @@
 
         function renderCharts(data) {
             const subIdMetrics = data.reduce((acc, item) => {
-                const subId = item.subId || 'Geral';
+                let subId = item.subId || 'Shopee Vídeos';
+                if (String(subId).trim().toLowerCase() === 'geral') subId = 'Shopee Vídeos';
+
                 const commission = Number(item.commission) || 0;
                 const quantity = Number(item.quantity) || 0;
                 if (!acc[subId]) {
@@ -1157,7 +1180,7 @@
                 subIdEntries.sort(([a], [b]) => a.localeCompare(b));
             }
 
-            const limitMode = chartLimitSelect ? chartLimitSelect.value : '10';
+            const limitMode = chartLimitSelect ? chartLimitSelect.value : 'all';
             let displayEntries = subIdEntries;
             if (limitMode !== 'all') {
                 displayEntries = subIdEntries.slice(0, parseInt(limitMode, 10));

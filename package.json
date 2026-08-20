@@ -1,0 +1,13 @@
+{
+  "name": "shopee-analytics-corrigido",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Painel de comissões com integração segura à Shopee Open API V2",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
